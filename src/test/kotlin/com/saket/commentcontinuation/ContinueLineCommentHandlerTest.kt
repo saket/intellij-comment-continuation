@@ -1,4 +1,4 @@
-package com.saket.continuelinecomment
+package com.saket.commentcontinuation
 
 import assertk.assertThat
 import assertk.assertions.doesNotContain

@@ -1,4 +1,4 @@
-package com.saket.continuelinecomment
+package com.saket.commentcontinuation
 
 import com.intellij.openapi.actionSystem.IdeActions
 import com.intellij.openapi.editor.actionSystem.EditorActionManager

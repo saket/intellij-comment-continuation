@@ -1,4 +1,4 @@
-package com.saket.continuelinecomment
+package com.saket.commentcontinuation
 
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.command.WriteCommandAction
@@ -16,7 +16,7 @@ class ContinueLineCommentHandler(
     try {
       unsafeDoExecute(editor, caret, dataContext)
     } catch (e: Exception) {
-      log.error("Continue Line Comment failed, falling back to default handler", e)
+      log.error("Comment Continuation failed, falling back to default handler", e)
       originalHandler.execute(editor, caret, dataContext)
     }
   }
@@ -64,7 +64,7 @@ class ContinueLineCommentHandler(
     )
     WriteCommandAction.runWriteCommandAction(
       /* project = */ project,
-      /* commandName = */ "Continue Line Comment",
+      /* commandName = */ "Comment Continuation",
       /* groupID = */ null,
       {
         document.insertString(caretOffset, textToInsert)

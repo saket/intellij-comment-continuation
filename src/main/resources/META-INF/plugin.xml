@@ -1,6 +1,6 @@
 <idea-plugin>
-    <id>com.saket.continue-line-comment</id>
-    <name>Continue Line Comment</name>
+    <id>com.saket.commentcontinuation</id>
+    <name>Comment Continuation</name>
     <vendor>saket</vendor>
 
     <description><![CDATA[
@@ -12,6 +12,6 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <postStartupActivity
-            implementation="com.saket.continuelinecomment.RegisterHandlerActivity"/>
+            implementation="com.saket.commentcontinuation.RegisterHandlerActivity"/>
     </extensions>
 </idea-plugin>

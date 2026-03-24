@@ -4,4 +4,4 @@ pluginManagement {
     }
 }
 
-rootProject.name = "continue-line-comment"
+rootProject.name = "comment-continuation"
