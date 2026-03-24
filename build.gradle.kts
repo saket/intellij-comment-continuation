@@ -23,6 +23,7 @@ dependencies {
     intellijIdeaCommunity(providers.gradleProperty("platformVersion").get())
     bundledPlugin("com.intellij.java")
     testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
+    zipSigner()
   }
   testImplementation("junit:junit:4.13.2")
   testImplementation("com.willowtreeapps.assertk:assertk:0.28.1")
@@ -42,5 +43,15 @@ intellijPlatform {
     ideaVersion {
       sinceBuild = providers.gradleProperty("pluginSinceBuild")
     }
+  }
+
+  signing {
+    certificateChain = providers.environmentVariable("CERTIFICATE_CHAIN")
+    privateKey = providers.environmentVariable("PRIVATE_KEY")
+    password = providers.environmentVariable("PRIVATE_KEY_PASSWORD")
+  }
+
+  publishing {
+    token = providers.environmentVariable("PUBLISH_TOKEN")
   }
 }
