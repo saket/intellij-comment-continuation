@@ -1,0 +1,17 @@
+<idea-plugin>
+    <id>com.saket.continue-line-comment</id>
+    <name>Continue Line Comment</name>
+    <vendor>saket</vendor>
+
+    <description><![CDATA[
+        Press Shift+Enter while inside a line comment (<code>//</code>) to automatically
+        continue the comment on the next line, preserving indentation.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <postStartupActivity
+            implementation="com.saket.continuelinecomment.RegisterHandlerActivity"/>
+    </extensions>
+</idea-plugin>
