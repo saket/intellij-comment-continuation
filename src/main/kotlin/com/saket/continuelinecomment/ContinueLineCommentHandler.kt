@@ -98,6 +98,6 @@ class ContinueLineCommentHandler(
   }
 
   private companion object {
-    val log = Logger.getInstance(ContinueLineCommentHandler::class.java)
+    private val log = Logger.getInstance(ContinueLineCommentHandler::class.java)
   }
 }
