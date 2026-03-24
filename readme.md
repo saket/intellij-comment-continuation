@@ -1,6 +1,6 @@
 # Continue Line Comment
 
-An IntelliJ plugin that lets you press **Shift+Enter** inside a `//` line comment to automatically continue the comment on the next line, preserving indentation.
+An IntelliJ plugin that lets you press **Shift+Enter** inside a `//` line comment that starts the line, after optional indentation, to automatically continue the comment on the next line, preserving indentation.
 
 ## Supported languages
 
