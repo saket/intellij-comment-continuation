@@ -5,6 +5,11 @@
     <depends>com.intellij.modules.platform</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <applicationConfigurable
+            parentId="tools"
+            instance="com.saket.commentcontinuation.UserPreferencesScreen"
+            id="com.saket.commentcontinuation.settings"
+            displayName="Comment Continuation"/>
         <postStartupActivity
             implementation="com.saket.commentcontinuation.RegisterHandlerActivity"/>
     </extensions>

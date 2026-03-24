@@ -3,6 +3,7 @@ package com.saket.commentcontinuation
 import assertk.assertThat
 import assertk.assertions.isGreaterThan
 import assertk.assertions.isGreaterThanOrEqualTo
+import com.intellij.openapi.actionSystem.IdeActions
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.actionSystem.EditorActionHandler
 import com.intellij.psi.PsiComment
@@ -33,14 +34,21 @@ class LineCommentDetectorBenchmarkTest : BasePlatformTestCase() {
 
     val stringScanTime = benchmarkHandler(
       handler = ContinueLineCommentHandler(
-        NoOpEditorActionHandler,
-        StringScanLineCommentDetector()
+        originalHandler = NoOpEditorActionHandler,
+        actionId = IdeActions.ACTION_EDITOR_ENTER,
+        userPreferencesReader = DefaultUserPreferences,
+        detector = StringScanLineCommentDetector()
       ),
       editor = myFixture.editor,
       caretOffset = lineEnd,
     )
     val psiTime = benchmarkHandler(
-      handler = ContinueLineCommentHandler(NoOpEditorActionHandler, PsiOnlyLineCommentDetector()),
+      handler = ContinueLineCommentHandler(
+        originalHandler = NoOpEditorActionHandler,
+        actionId = IdeActions.ACTION_EDITOR_ENTER,
+        userPreferencesReader = DefaultUserPreferences,
+        detector = PsiOnlyLineCommentDetector(),
+      ),
       editor = myFixture.editor,
       caretOffset = lineEnd,
     )
@@ -85,6 +93,7 @@ class LineCommentDetectorBenchmarkTest : BasePlatformTestCase() {
     private val WarmupIterations = 1_000
     private val BenchmarkIterations = 10_000
     private val NoOpEditorActionHandler = object : EditorActionHandler() {}
+    private val DefaultUserPreferences = UserPreferencesReader { UserPreferences() }
 
     private val FileContent: String by lazy {
       val stream = LineCommentDetectorBenchmarkTest::class.java.classLoader

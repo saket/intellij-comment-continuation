@@ -12,17 +12,27 @@ class RegisterHandlerActivity : ProjectActivity {
   }
 }
 
+// Kept top-level because IntelliJ warns when extension implementation companion
+// objects contain mutable state or helpers beyond constants and a logger.
 private val registered = AtomicBoolean(false)
 
 internal fun ensureHandlerRegistered() {
   if (!registered.compareAndSet(false, true)) {
     return
   }
-
   val manager = EditorActionManager.getInstance()
-  val originalHandler = manager.getActionHandler(IdeActions.ACTION_EDITOR_ENTER)
-  manager.setActionHandler(
-    IdeActions.ACTION_EDITOR_ENTER,
-    ContinueLineCommentHandler(originalHandler),
-  )
+  val userPreferencesReader = RealUserPreferencesReader.instance()
+  for (actionId in SupportedEditorActionIds) {
+    val handler = ContinueLineCommentHandler(
+      actionId = actionId,
+      userPreferencesReader = userPreferencesReader,
+      originalHandler = manager.getActionHandler(actionId),
+    )
+    manager.setActionHandler(actionId, handler)
+  }
 }
+
+private val SupportedEditorActionIds = listOf(
+  IdeActions.ACTION_EDITOR_ENTER,
+  IdeActions.ACTION_EDITOR_START_NEW_LINE,
+)

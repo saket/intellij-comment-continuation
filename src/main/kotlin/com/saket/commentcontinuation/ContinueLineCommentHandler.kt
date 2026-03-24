@@ -1,14 +1,18 @@
 package com.saket.commentcontinuation
 
 import com.intellij.openapi.actionSystem.DataContext
+import com.intellij.openapi.actionSystem.IdeActions
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.editor.Caret
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.actionSystem.EditorActionHandler
 
+// TODO: Rename to CommentContinuationHandler.
 class ContinueLineCommentHandler(
-  private val originalHandler: EditorActionHandler,
+  internal val originalHandler: EditorActionHandler,
+  private val actionId: String,
+  private val userPreferencesReader: UserPreferencesReader,
   private val detector: LineCommentDetector = StringScanLineCommentDetector(),
 ) : EditorActionHandler(/* runForEachCaret = */ true) {
 
@@ -32,6 +36,11 @@ class ContinueLineCommentHandler(
     caret: Caret?,
     dataContext: DataContext,
   ) {
+    if (!isEnabledForCurrentShortcutMode()) {
+      originalHandler.execute(editor, caret, dataContext)
+      return
+    }
+
     val project = editor.project
     if (project == null) {
       // IntelliJ can create editors that are not attached to a project, such as standalone or
@@ -91,6 +100,13 @@ class ContinueLineCommentHandler(
       return null
     }
     return lineCommentMatch
+  }
+
+  private fun isEnabledForCurrentShortcutMode(): Boolean {
+    return when (userPreferencesReader.read().shortcutMode) {
+      UserPreferences.ShortcutMode.Enter -> actionId == IdeActions.ACTION_EDITOR_ENTER
+      UserPreferences.ShortcutMode.ShiftEnter -> actionId == IdeActions.ACTION_EDITOR_START_NEW_LINE
+    }
   }
 
   private fun buildContinuationText(
