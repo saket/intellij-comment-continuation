@@ -7,8 +7,9 @@ Every push to `trunk` that passes tests is automatically signed and published to
 The very first version must be uploaded manually:
 
 1. Run `./gradlew buildPlugin`
-2. Go to [plugins.jetbrains.com](https://plugins.jetbrains.com) > Add new plugin
-3. Upload the zip from `build/distributions/continue-line-comment-<version>.zip`
+2. Find the built plugin in `build/distributions/`
+3. Go to [plugins.jetbrains.com](https://plugins.jetbrains.com) > Add new plugin
+4. Upload the zip from `build/distributions/continue-line-comment-<version>.zip`
 
 After that, CI handles everything.
 

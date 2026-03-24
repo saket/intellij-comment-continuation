@@ -1,12 +1,6 @@
 <idea-plugin>
+    <!-- name, vendor, and description are injected by Gradle from gradle.properties and readme.md -->
     <id>com.saket.commentcontinuation</id>
-    <name>Comment Continuation</name>
-    <vendor>saket</vendor>
-
-    <description><![CDATA[
-        Press Shift+Enter while inside a line comment (<code>//</code>) to automatically
-        continue the comment on the next line, preserving indentation.
-    ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
 

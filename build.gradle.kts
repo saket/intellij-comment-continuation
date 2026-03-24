@@ -36,12 +36,35 @@ tasks.test {
 }
 
 intellijPlatform {
+  fun extractPluginDescription(readme: String): String {
+    val startMarker = "<!-- Plugin description -->"
+    val endMarker = "<!-- Plugin description end -->"
+
+    require(readme.contains(startMarker) && readme.contains(endMarker)) {
+      "readme.md must contain $startMarker and $endMarker markers"
+    }
+
+    return readme
+      .substringAfter(startMarker)
+      .substringBefore(endMarker)
+      .trim()
+  }
+
+  val pluginDescription = providers.fileContents(layout.projectDirectory.file("readme.md"))
+    .asText
+    .map(::extractPluginDescription)
+
   pluginConfiguration {
     name = providers.gradleProperty("pluginName")
     version = providers.gradleProperty("pluginVersion")
+    description.set(pluginDescription)
+    vendor {
+      name = providers.gradleProperty("pluginVendor")
+    }
 
     ideaVersion {
       sinceBuild = providers.gradleProperty("pluginSinceBuild")
+      untilBuild = provider { null } // Avoid capping compatibility at the compile-time IDE build.
     }
   }
 
