@@ -8,8 +8,7 @@ import com.intellij.openapi.editor.Caret
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.actionSystem.EditorActionHandler
 
-// TODO: Rename to CommentContinuationHandler.
-class ContinueLineCommentHandler(
+class CommentContinuationHandler(
   internal val originalHandler: EditorActionHandler,
   private val actionId: String,
   private val userPreferencesReader: UserPreferencesReader,
@@ -130,6 +129,6 @@ class ContinueLineCommentHandler(
 
   private companion object {
     private const val minimumCommentPrefixLength = 2
-    private val log = Logger.getInstance(ContinueLineCommentHandler::class.java)
+    private val log = Logger.getInstance(CommentContinuationHandler::class.java)
   }
 }

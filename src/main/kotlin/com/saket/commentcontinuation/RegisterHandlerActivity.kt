@@ -23,7 +23,7 @@ internal fun ensureHandlerRegistered() {
   val manager = EditorActionManager.getInstance()
   val userPreferencesReader = RealUserPreferencesReader.instance()
   for (actionId in SupportedEditorActionIds) {
-    val handler = ContinueLineCommentHandler(
+    val handler = CommentContinuationHandler(
       actionId = actionId,
       userPreferencesReader = userPreferencesReader,
       originalHandler = manager.getActionHandler(actionId),

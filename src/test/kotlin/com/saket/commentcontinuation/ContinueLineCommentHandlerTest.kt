@@ -212,7 +212,7 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     for (actionId in supportedEditorActionIds) {
       manager.setActionHandler(
         actionId,
-        ContinueLineCommentHandler(
+        CommentContinuationHandler(
           originalHandler = unwrapOriginalHandler(manager.getActionHandler(actionId)),
           actionId = actionId,
           userPreferencesReader = { userPreferences },
@@ -225,7 +225,7 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
 private tailrec fun unwrapOriginalHandler(handler: EditorActionHandler): EditorActionHandler {
   // Test IDE startup can install this plugin's handler before the test replaces it. Unwrap any
   // existing Comment Continuation handler so each test rebuilds from the platform's real handler.
-  return if (handler is ContinueLineCommentHandler) {
+  return if (handler is CommentContinuationHandler) {
     unwrapOriginalHandler(handler.originalHandler)
   } else {
     handler

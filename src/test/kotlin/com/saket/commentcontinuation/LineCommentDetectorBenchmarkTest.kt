@@ -33,7 +33,7 @@ class LineCommentDetectorBenchmarkTest : BasePlatformTestCase() {
     val lineEnd = lineStart + lines[targetLineIndex].length
 
     val stringScanTime = benchmarkHandler(
-      handler = ContinueLineCommentHandler(
+      handler = CommentContinuationHandler(
         originalHandler = NoOpEditorActionHandler,
         actionId = IdeActions.ACTION_EDITOR_ENTER,
         userPreferencesReader = DefaultUserPreferences,
@@ -43,7 +43,7 @@ class LineCommentDetectorBenchmarkTest : BasePlatformTestCase() {
       caretOffset = lineEnd,
     )
     val psiTime = benchmarkHandler(
-      handler = ContinueLineCommentHandler(
+      handler = CommentContinuationHandler(
         originalHandler = NoOpEditorActionHandler,
         actionId = IdeActions.ACTION_EDITOR_ENTER,
         userPreferencesReader = DefaultUserPreferences,
@@ -74,7 +74,7 @@ class LineCommentDetectorBenchmarkTest : BasePlatformTestCase() {
   }
 
   private fun benchmarkHandler(
-    handler: ContinueLineCommentHandler,
+    handler: CommentContinuationHandler,
     editor: Editor,
     caretOffset: Int,
   ): Duration {
