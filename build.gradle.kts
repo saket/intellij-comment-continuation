@@ -1,11 +1,33 @@
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
+
 plugins {
   id("java")
   id("org.jetbrains.kotlin.jvm") version "2.0.21"
   id("org.jetbrains.intellij.platform") version "2.3.0"
 }
 
+val pluginVersion = provider {
+  fun generateReleaseVersion(): String {
+    val now = ZonedDateTime.now(ZoneOffset.UTC)
+    return "%d.%d.%d.%04d".format(now.year, now.monthValue, now.dayOfMonth, now.hour * 100 + now.minute)
+  }
+
+  fun isReleaseBuildTaskRequested(taskNames: List<String>): Boolean {
+    return taskNames.any { taskName ->
+      taskName.endsWith("buildPlugin") || taskName.endsWith("publishPlugin")
+    }
+  }
+  when {
+    gradle.startParameter.projectProperties.containsKey("pluginVersion") ->
+      gradle.startParameter.projectProperties.getValue("pluginVersion")
+    isReleaseBuildTaskRequested(gradle.startParameter.taskNames) -> generateReleaseVersion()
+    else -> providers.gradleProperty("pluginVersion").get()
+  }
+}
+
 group = providers.gradleProperty("pluginGroup").get()
-version = providers.gradleProperty("pluginVersion").get()
+version = pluginVersion.get()
 
 kotlin {
   jvmToolchain(17)
@@ -56,7 +78,7 @@ intellijPlatform {
 
   pluginConfiguration {
     name = providers.gradleProperty("pluginName")
-    version = providers.gradleProperty("pluginVersion")
+    version = pluginVersion
     description.set(pluginDescription)
     vendor {
       name = providers.gradleProperty("pluginVendor")

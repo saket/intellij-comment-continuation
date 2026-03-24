@@ -9,7 +9,7 @@ The very first version must be uploaded manually:
 1. Run `./gradlew buildPlugin`
 2. Find the built plugin in `build/distributions/`
 3. Go to [plugins.jetbrains.com](https://plugins.jetbrains.com) > Add new plugin
-4. Upload the zip from `build/distributions/continue-line-comment-<version>.zip`
+4. Upload the zip from `build/distributions/comment-continuation-<utc-timestamp-version>.zip`
 
 After that, CI handles everything.
 
