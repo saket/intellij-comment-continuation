@@ -10,7 +10,7 @@ import com.intellij.openapi.editor.actionSystem.EditorActionHandler
 class ContinueLineCommentHandler(
   private val originalHandler: EditorActionHandler,
   private val detector: LineCommentDetector = StringScanLineCommentDetector(),
-) : EditorActionHandler(true) {
+) : EditorActionHandler(/* runForEachCaret = */ true) {
 
   override fun doExecute(editor: Editor, caret: Caret?, dataContext: DataContext) {
     try {
