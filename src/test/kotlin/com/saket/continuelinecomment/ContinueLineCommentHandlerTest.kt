@@ -63,7 +63,7 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
       """.trimMargin(),
       after = """
         |/// doc comment
-        |// ▮
+        |/// ▮
       """.trimMargin(),
     )
   }

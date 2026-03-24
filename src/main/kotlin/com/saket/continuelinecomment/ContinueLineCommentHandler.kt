@@ -77,12 +77,24 @@ class ContinueLineCommentHandler(
     chars: CharSequence,
     lineStart: Int,
     slashSlashIndex: Int,
-  ): String = buildString((slashSlashIndex - lineStart) + 4) {
-    append('\n')
-    for (offset in lineStart until slashSlashIndex) {
-      append(chars[offset])
+  ): String {
+    val minimumCommentPrefixLength = 2
+    var commentPrefixEnd = slashSlashIndex + minimumCommentPrefixLength
+    while (commentPrefixEnd < chars.length && chars[commentPrefixEnd] == '/') {
+      commentPrefixEnd++
     }
-    append("// ")
+    val indentLength = slashSlashIndex - lineStart
+    val commentPrefixLength = commentPrefixEnd - slashSlashIndex
+    return buildString(indentLength + commentPrefixLength + minimumCommentPrefixLength) {
+      append('\n')
+      for (offset in lineStart until slashSlashIndex) {
+        append(chars[offset])
+      }
+      for (offset in slashSlashIndex until commentPrefixEnd) {
+        append(chars[offset])
+      }
+      append(' ')
+    }
   }
 
   private companion object {
