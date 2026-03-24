@@ -12,41 +12,9 @@ class ContinueLineCommentHandler(
   private val detector: LineCommentDetector = StringScanLineCommentDetector(),
 ) : EditorActionHandler(true) {
 
-  private val log = Logger.getInstance(ContinueLineCommentHandler::class.java)
-
   override fun doExecute(editor: Editor, caret: Caret?, dataContext: DataContext) {
     try {
-      val activeCaret = caret ?: editor.caretModel.currentCaret
-      val document = editor.document
-      val caretOffset = activeCaret.offset
-      val lineNumber = document.getLineNumber(caretOffset)
-      val lineStart = document.getLineStartOffset(lineNumber)
-      val lineEnd = document.getLineEndOffset(lineNumber)
-
-      val slashSlashIndex = detector.indexOfLineComment(editor, lineStart, lineEnd)
-      if (slashSlashIndex < 0 || caretOffset <= slashSlashIndex + 1) {
-        originalHandler.execute(editor, caret, dataContext)
-        return
-      }
-
-      val textToInsert = buildContinuationText(
-        chars = document.charsSequence,
-        lineStart = lineStart,
-        slashSlashIndex = slashSlashIndex,
-      )
-
-      val project = editor.project
-      if (project != null) {
-        WriteCommandAction.runWriteCommandAction(
-          /* project = */ project,
-          /* commandName = */ "Continue Line Comment",
-          /* groupID = */ null,
-          {
-            document.insertString(caretOffset, textToInsert)
-            activeCaret.moveToOffset(caretOffset + textToInsert.length)
-          },
-        )
-      }
+      unsafeDoExecute(editor, caret, dataContext)
     } catch (e: Exception) {
       log.error("Continue Line Comment failed, falling back to default handler", e)
       originalHandler.execute(editor, caret, dataContext)
@@ -59,6 +27,52 @@ class ContinueLineCommentHandler(
     dataContext: DataContext?,
   ): Boolean = true
 
+  private fun unsafeDoExecute(
+    editor: Editor,
+    caret: Caret?,
+    dataContext: DataContext,
+  ) {
+    val project = editor.project
+    if (project == null) {
+      // IntelliJ can create editors that are not attached to a project, such as standalone or
+      // temporary editors, some diff/preview/viewer surfaces, and tests or other platform-created
+      // editors. Our custom continuation runs inside a project-scoped write command, so it cannot
+      // handle those cases.
+      originalHandler.execute(editor, caret, dataContext)
+      return
+    }
+
+    val activeCaret = caret ?: editor.caretModel.currentCaret
+    val document = editor.document
+    val caretOffset = activeCaret.offset
+    val lineNumber = document.getLineNumber(caretOffset)
+    val lineStart = document.getLineStartOffset(lineNumber)
+    val lineEnd = document.getLineEndOffset(lineNumber)
+
+    val slashSlashIndex = detector.indexOfLineComment(editor, lineStart, lineEnd)
+    if (slashSlashIndex < 0 || caretOffset <= slashSlashIndex + 1) {
+      // The detector only continues comments that begin the line after indentation. This branch
+      // covers non-comment lines, trailing code comments, and carets placed before the "//" marker.
+      originalHandler.execute(editor, caret, dataContext)
+      return
+    }
+
+    val textToInsert = buildContinuationText(
+      chars = document.charsSequence,
+      lineStart = lineStart,
+      slashSlashIndex = slashSlashIndex,
+    )
+    WriteCommandAction.runWriteCommandAction(
+      /* project = */ project,
+      /* commandName = */ "Continue Line Comment",
+      /* groupID = */ null,
+      {
+        document.insertString(caretOffset, textToInsert)
+        activeCaret.moveToOffset(caretOffset + textToInsert.length)
+      },
+    )
+  }
+
   private fun buildContinuationText(
     chars: CharSequence,
     lineStart: Int,
@@ -69,5 +83,9 @@ class ContinueLineCommentHandler(
       append(chars[offset])
     }
     append("// ")
+  }
+
+  private companion object {
+    val log = Logger.getInstance(ContinueLineCommentHandler::class.java)
   }
 }
