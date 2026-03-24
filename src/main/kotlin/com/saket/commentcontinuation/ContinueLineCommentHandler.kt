@@ -45,52 +45,67 @@ class ContinueLineCommentHandler(
     val activeCaret = caret ?: editor.caretModel.currentCaret
     val document = editor.document
     val caretOffset = activeCaret.offset
-    val lineNumber = document.getLineNumber(caretOffset)
-    val lineStart = document.getLineStartOffset(lineNumber)
-    val lineEnd = document.getLineEndOffset(lineNumber)
-
-    val slashSlashIndex = detector.indexOfLineComment(editor, lineStart, lineEnd)
-    if (slashSlashIndex < 0 || caretOffset <= slashSlashIndex + 1) {
-      // The detector only continues comments that begin the line after indentation. This branch
-      // covers non-comment lines, trailing code comments, and carets placed before the "//" marker.
+    val lineCommentMatch = findConfirmedLineComment(editor, caretOffset)
+    if (lineCommentMatch == null) {
       originalHandler.execute(editor, caret, dataContext)
       return
     }
 
-    val textToInsert = buildContinuationText(
-      chars = document.charsSequence,
-      lineStart = lineStart,
-      slashSlashIndex = slashSlashIndex,
-    )
-    WriteCommandAction.runWriteCommandAction(
-      /* project = */ project,
-      /* commandName = */ "Comment Continuation",
-      /* groupID = */ null,
-      {
-        document.insertString(caretOffset, textToInsert)
-        activeCaret.moveToOffset(caretOffset + textToInsert.length)
-      },
-    )
+    val chars = document.charsSequence
+    val lineNumber = document.getLineNumber(caretOffset)
+    val lineStart = document.getLineStartOffset(lineNumber)
+    val lineEnd = document.getLineEndOffset(lineNumber)
+    if (lineCommentMatch.isEmptyContinuationLine) {
+      // Pressing Enter again on an empty generated comment line should exit the continuation,
+      // similar to how markdown editors exit list items on a second Enter.
+      WriteCommandAction.runWriteCommandAction(project, "Exit Comment Continuation", null, {
+        document.deleteString(lineCommentMatch.start, lineEnd)
+        activeCaret.moveToOffset(lineCommentMatch.start)
+      })
+      return
+    }
+
+    val textToInsert = buildContinuationText(chars, lineStart, lineCommentMatch)
+    WriteCommandAction.runWriteCommandAction(project, "Comment Continuation", null, {
+      document.insertString(caretOffset, textToInsert)
+      activeCaret.moveToOffset(caretOffset + textToInsert.length)
+    })
+  }
+
+  internal fun findConfirmedLineComment(editor: Editor, caretOffset: Int): LineCommentMatch? {
+    val document = editor.document
+    val lineNumber = document.getLineNumber(caretOffset)
+    val lineStart = document.getLineStartOffset(lineNumber)
+    val lineEnd = document.getLineEndOffset(lineNumber)
+
+    // Raw string scanning is the hot-path filter. PSI only runs for likely comment lines.
+    val lineCommentMatch = detector.findLikelyLineComment(editor, lineStart, lineEnd)
+    if (lineCommentMatch == null || caretOffset <= lineCommentMatch.start + 1) {
+      // This excludes normal code, trailing comments, and carets placed before the comment marker.
+      return null
+    }
+
+    // Only override Enter for Java/Kotlin line comments. Everything else should keep the IDE's
+    // built-in Enter behavior.
+    if (!detector.isConfirmedLineComment(editor, lineCommentMatch)) {
+      return null
+    }
+    return lineCommentMatch
   }
 
   private fun buildContinuationText(
     chars: CharSequence,
     lineStart: Int,
-    slashSlashIndex: Int,
+    lineCommentMatch: LineCommentMatch,
   ): String {
-    val minimumCommentPrefixLength = 2
-    var commentPrefixEnd = slashSlashIndex + minimumCommentPrefixLength
-    while (commentPrefixEnd < chars.length && chars[commentPrefixEnd] == '/') {
-      commentPrefixEnd++
-    }
-    val indentLength = slashSlashIndex - lineStart
-    val commentPrefixLength = commentPrefixEnd - slashSlashIndex
+    val indentLength = lineCommentMatch.start - lineStart
+    val commentPrefixLength = lineCommentMatch.prefixEnd - lineCommentMatch.start
     return buildString(indentLength + commentPrefixLength + minimumCommentPrefixLength) {
       append('\n')
-      for (offset in lineStart until slashSlashIndex) {
+      for (offset in lineStart until lineCommentMatch.start) {
         append(chars[offset])
       }
-      for (offset in slashSlashIndex until commentPrefixEnd) {
+      for (offset in lineCommentMatch.start until lineCommentMatch.prefixEnd) {
         append(chars[offset])
       }
       append(' ')
@@ -98,6 +113,7 @@ class ContinueLineCommentHandler(
   }
 
   private companion object {
+    private const val minimumCommentPrefixLength = 2
     private val log = Logger.getInstance(ContinueLineCommentHandler::class.java)
   }
 }

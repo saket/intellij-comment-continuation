@@ -4,8 +4,19 @@ import com.intellij.openapi.editor.Editor
 
 interface LineCommentDetector {
   /**
-   * Checks if the caret is inside a line comment on the current line.
-   * Returns the index of the first '/' in "//" or -1 if not in a line comment.
+   * Fast hot-path precheck. Returns parsed line-comment structure, or null if the current line is
+   * not a plausible start-of-line comment candidate.
    */
-  fun indexOfLineComment(editor: Editor, lineStart: Int, lineEnd: Int): Int
+  fun findLikelyLineComment(editor: Editor, lineStart: Int, lineEnd: Int): LineCommentMatch?
+
+  /**
+   * Slower semantic confirmation that runs only after the fast candidate check passes.
+   */
+  fun isConfirmedLineComment(editor: Editor, match: LineCommentMatch): Boolean
 }
+
+data class LineCommentMatch(
+  val start: Int,
+  val prefixEnd: Int,
+  val isEmptyContinuationLine: Boolean,
+)

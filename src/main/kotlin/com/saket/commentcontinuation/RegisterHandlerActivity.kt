@@ -20,9 +20,9 @@ internal fun ensureHandlerRegistered() {
   }
 
   val manager = EditorActionManager.getInstance()
-  val originalHandler = manager.getActionHandler(IdeActions.ACTION_EDITOR_START_NEW_LINE)
+  val originalHandler = manager.getActionHandler(IdeActions.ACTION_EDITOR_ENTER)
   manager.setActionHandler(
-    IdeActions.ACTION_EDITOR_START_NEW_LINE,
-    ContinueLineCommentHandler(originalHandler, StringScanLineCommentDetector()),
+    IdeActions.ACTION_EDITOR_ENTER,
+    ContinueLineCommentHandler(originalHandler),
   )
 }

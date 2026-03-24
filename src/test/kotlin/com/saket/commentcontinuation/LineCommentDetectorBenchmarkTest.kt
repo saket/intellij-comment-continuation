@@ -4,6 +4,7 @@ import assertk.assertThat
 import assertk.assertions.isGreaterThan
 import assertk.assertions.isGreaterThanOrEqualTo
 import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.editor.actionSystem.EditorActionHandler
 import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.util.PsiTreeUtil
@@ -13,31 +14,35 @@ import kotlin.time.measureTime
 
 class LineCommentDetectorBenchmarkTest : BasePlatformTestCase() {
 
-  fun `test string scanning is faster than PSI for finding line comments`() {
+  fun `test string scanning is faster than PSI for rejecting non comment lines`() {
     myFixture.configureByText("View.java", FileContent)
     val lines = FileContent.lines()
 
-    // Find a comment line near the middle of the file, inside nested code.
+    // Find a non-comment line near the middle of the file, inside nested code.
     val middleLine = lines.size / 2
     val targetLineIndex = lines.subList(middleLine, lines.size)
-      .indexOfFirst { it.trimStart().startsWith("//") }
+      .indexOfFirst { line ->
+        val trimmed = line.trimStart()
+        trimmed.isNotEmpty() && !trimmed.startsWith("//")
+      }
       .let { it + middleLine }
     assertThat(targetLineIndex).isGreaterThanOrEqualTo(middleLine)
 
     val lineStart = lines.take(targetLineIndex).sumOf { it.length + 1 }
     val lineEnd = lineStart + lines[targetLineIndex].length
 
-    val stringScanTime = benchmark(
-      detector = StringScanLineCommentDetector(),
+    val stringScanTime = benchmarkHandler(
+      handler = ContinueLineCommentHandler(
+        NoOpEditorActionHandler,
+        StringScanLineCommentDetector()
+      ),
       editor = myFixture.editor,
-      lineStart = lineStart,
-      lineEnd = lineEnd
+      caretOffset = lineEnd,
     )
-    val psiTime = benchmark(
-      detector = PsiLineCommentDetector(),
+    val psiTime = benchmarkHandler(
+      handler = ContinueLineCommentHandler(NoOpEditorActionHandler, PsiOnlyLineCommentDetector()),
       editor = myFixture.editor,
-      lineStart = lineStart,
-      lineEnd = lineEnd
+      caretOffset = lineEnd,
     )
 
     val stringScanAvg = stringScanTime / BenchmarkIterations
@@ -48,7 +53,7 @@ class LineCommentDetectorBenchmarkTest : BasePlatformTestCase() {
       """
       |
       |=== Benchmark: $BenchmarkIterations iterations on AOSP View.java (${lines.size} lines) ===
-      |Comment on line ${targetLineIndex + 1}: "${lines[targetLineIndex].trim()}"
+      |Non-comment line ${targetLineIndex + 1}: "${lines[targetLineIndex].trim()}"
       |
       |String scan:  $stringScanAvg avg  ($stringScanTime total)
       |PSI:          $psiAvg avg  ($psiTime total)
@@ -60,18 +65,17 @@ class LineCommentDetectorBenchmarkTest : BasePlatformTestCase() {
     assertThat(speedup).isGreaterThan(1.0)
   }
 
-  private fun benchmark(
-    detector: LineCommentDetector,
+  private fun benchmarkHandler(
+    handler: ContinueLineCommentHandler,
     editor: Editor,
-    lineStart: Int,
-    lineEnd: Int,
+    caretOffset: Int,
   ): Duration {
     repeat(WarmupIterations) {
-      detector.indexOfLineComment(editor, lineStart, lineEnd)
+      handler.findConfirmedLineComment(editor, caretOffset)
     }
     return measureTime {
       repeat(BenchmarkIterations) {
-        detector.indexOfLineComment(editor, lineStart, lineEnd)
+        handler.findConfirmedLineComment(editor, caretOffset)
       }
     }
   }
@@ -80,6 +84,7 @@ class LineCommentDetectorBenchmarkTest : BasePlatformTestCase() {
   companion object {
     private val WarmupIterations = 1_000
     private val BenchmarkIterations = 10_000
+    private val NoOpEditorActionHandler = object : EditorActionHandler() {}
 
     private val FileContent: String by lazy {
       val stream = LineCommentDetectorBenchmarkTest::class.java.classLoader
@@ -91,22 +96,36 @@ class LineCommentDetectorBenchmarkTest : BasePlatformTestCase() {
 }
 
 /** Baseline detector that uses PSI tree traversal, used only for benchmark comparison. */
-private class PsiLineCommentDetector : LineCommentDetector {
-  override fun indexOfLineComment(editor: Editor, lineStart: Int, lineEnd: Int): Int {
-    val project = editor.project ?: return -1
+private class PsiOnlyLineCommentDetector : LineCommentDetector {
+  override fun findLikelyLineComment(
+    editor: Editor,
+    lineStart: Int,
+    lineEnd: Int
+  ): LineCommentMatch? {
+    val project = editor.project ?: return null
     val psiDocManager = PsiDocumentManager.getInstance(project)
     psiDocManager.commitDocument(editor.document)
-    val psiFile = psiDocManager.getPsiFile(editor.document) ?: return -1
+    val psiFile = psiDocManager.getPsiFile(editor.document) ?: return null
 
     val element = psiFile.findElementAt(lineStart)
       ?: psiFile.findElementAt((lineStart - 1).coerceAtLeast(0))
-      ?: return -1
+      ?: return null
 
     val comment = (element as? PsiComment)
       ?: PsiTreeUtil.getParentOfType(element, PsiComment::class.java, false)
-      ?: return -1
+      ?: return null
 
-    if (!comment.text.startsWith("//")) return -1
-    return comment.textOffset
+    if (!comment.text.startsWith("//")) return null
+    val commentStart = comment.textOffset
+    val commentEnd = commentStart + comment.text.takeWhile { it == '/' }.length
+    val isEmptyContinuationLine =
+      comment.text.drop(commentEnd - commentStart).all { it.isWhitespace() }
+    return LineCommentMatch(
+      start = commentStart,
+      prefixEnd = commentEnd,
+      isEmptyContinuationLine = isEmptyContinuationLine,
+    )
   }
+
+  override fun isConfirmedLineComment(editor: Editor, match: LineCommentMatch): Boolean = true
 }
