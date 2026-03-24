@@ -10,14 +10,15 @@ import com.intellij.openapi.editor.actionSystem.EditorActionHandler
 class ContinueLineCommentHandler(
   private val originalHandler: EditorActionHandler,
   private val detector: LineCommentDetector = StringScanLineCommentDetector(),
-) : EditorActionHandler() {
+) : EditorActionHandler(true) {
 
   private val log = Logger.getInstance(ContinueLineCommentHandler::class.java)
 
   override fun doExecute(editor: Editor, caret: Caret?, dataContext: DataContext) {
     try {
+      val activeCaret = caret ?: editor.caretModel.currentCaret
       val document = editor.document
-      val caretOffset = editor.caretModel.offset
+      val caretOffset = activeCaret.offset
       val lineNumber = document.getLineNumber(caretOffset)
       val lineStart = document.getLineStartOffset(lineNumber)
       val lineEnd = document.getLineEndOffset(lineNumber)
@@ -42,7 +43,7 @@ class ContinueLineCommentHandler(
           /* groupID = */ null,
           {
             document.insertString(caretOffset, textToInsert)
-            editor.caretModel.moveToOffset(caretOffset + textToInsert.length)
+            activeCaret.moveToOffset(caretOffset + textToInsert.length)
           },
         )
       }

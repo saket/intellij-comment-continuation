@@ -10,50 +10,100 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
 
   fun `test continues a comment when pressing shift enter at the end`() {
     testShiftEnter(
-      before = "// hello▮",
-      after = "// hello\n// ▮",
+      before = """
+        |// hello▮
+      """.trimMargin(),
+      after = """
+        |// hello
+        |// ▮
+      """.trimMargin(),
     )
   }
 
   fun `test continues a comment when pressing shift enter in the middle`() {
     testShiftEnter(
-      before = "// hel▮lo",
-      after = "// hel\n// ▮lo",
+      before = """
+        |// hel▮lo
+      """.trimMargin(),
+      after = """
+        |// hel
+        |// ▮lo
+      """.trimMargin(),
     )
   }
 
   fun `test keeps leading spaces on the next line`() {
     testShiftEnter(
-      before = "    // hello▮",
-      after = "    // hello\n    // ▮",
+      before = """
+        |    // hello▮
+      """.trimMargin(),
+      after = """
+        |    // hello
+        |    // ▮
+      """.trimMargin(),
     )
   }
 
   fun `test keeps leading tabs on the next line`() {
     testShiftEnter(
-      before = "\t\t// hello▮",
-      after = "\t\t// hello\n\t\t// ▮",
+      before = """
+        |		// hello▮
+      """.trimMargin(),
+      after = """
+        |		// hello
+        |		// ▮
+      """.trimMargin(),
     )
   }
 
   fun `test works with triple slash comments`() {
     testShiftEnter(
-      before = "/// doc comment▮",
-      after = "/// doc comment\n// ▮",
+      before = """
+        |/// doc comment▮
+      """.trimMargin(),
+      after = """
+        |/// doc comment
+        |// ▮
+      """.trimMargin(),
     )
   }
 
   fun `test works on an empty comment`() {
     testShiftEnter(
-      before = "// ▮",
-      after = "// \n// ▮",
+      before = """
+        |// ▮
+      """.trimMargin(),
+      after = """
+        |// 
+        |// ▮
+      """.trimMargin(),
     )
   }
 
   fun `test works on a comment that has no space after slashes`() {
     testShiftEnter(
-      before = "//hello▮",
-      after = "//hello\n// ▮",
+      before = """
+        |//hello▮
+      """.trimMargin(),
+      after = """
+        |//hello
+        |// ▮
+      """.trimMargin(),
+    )
+  }
+
+  fun `test continues comments for multiple carets independently`() {
+    testShiftEnter(
+      before = """
+        |// first▮
+        |// second▮
+      """.trimMargin(),
+      after = """
+        |// first
+        |// ▮
+        |// second
+        |// ▮
+      """.trimMargin(),
     )
   }
 
