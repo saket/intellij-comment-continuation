@@ -4,4 +4,4 @@ pluginManagement {
   }
 }
 
-rootProject.name = "comment-continuation"
+rootProject.name = "intellij-comment-continuation"
