@@ -8,21 +8,11 @@ plugins {
 }
 
 val pluginVersion = provider {
-  fun generateReleaseVersion(): String {
+  if (providers.environmentVariable("IS_CI").isPresent) {
     val now = ZonedDateTime.now(ZoneOffset.UTC)
-    return "%d.%d.%d.%04d".format(now.year, now.monthValue, now.dayOfMonth, now.hour * 100 + now.minute)
-  }
-
-  fun isReleaseBuildTaskRequested(taskNames: List<String>): Boolean {
-    return taskNames.any { taskName ->
-      taskName.endsWith("buildPlugin") || taskName.endsWith("publishPlugin")
-    }
-  }
-  when {
-    gradle.startParameter.projectProperties.containsKey("pluginVersion") ->
-      gradle.startParameter.projectProperties.getValue("pluginVersion")
-    isReleaseBuildTaskRequested(gradle.startParameter.taskNames) -> generateReleaseVersion()
-    else -> providers.gradleProperty("pluginVersion").get()
+    "%d.%d.%d.%04d".format(now.year, now.monthValue, now.dayOfMonth, now.hour * 100 + now.minute)
+  } else {
+    localPluginVersion()
   }
 }
 
@@ -100,3 +90,13 @@ intellijPlatform {
     token = providers.environmentVariable("PUBLISH_TOKEN")
   }
 }
+
+tasks.matching { it.name == "publishPlugin" }.configureEach {
+  doFirst {
+    check(pluginVersion.get() != localPluginVersion()) {
+      "Local publishing is disabled. Trigger the Publish GitHub Actions workflow instead."
+    }
+  }
+}
+
+fun localPluginVersion() = "0.0.0-dev"

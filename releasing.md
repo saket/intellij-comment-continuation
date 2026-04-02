@@ -1,6 +1,12 @@
 # Releasing
 
-Every push to `trunk` that passes tests is automatically signed and published to the [JetBrains Marketplace](https://plugins.jetbrains.com). Version is generated from the UTC timestamp (e.g., `2026.3.24.1422`).
+Pushes to `trunk` run CI only. Publishing to the [JetBrains Marketplace](https://plugins.jetbrains.com)
+happens only when the workflow is triggered manually from GitHub Actions.
+
+Published versions are generated automatically from the current UTC timestamp,
+for example `2026.4.2.1430`.
+
+Local builds use the dummy version `0.0.0-dev` and cannot be published.
 
 ## First-time setup
 
@@ -9,9 +15,17 @@ The very first version must be uploaded manually:
 1. Run `./gradlew buildPlugin`
 2. Find the built plugin in `build/distributions/`
 3. Go to [plugins.jetbrains.com](https://plugins.jetbrains.com) > Add new plugin
-4. Upload the zip from `build/distributions/comment-continuation-<utc-timestamp-version>.zip`
+4. Upload the zip from `build/distributions/comment-continuation-<version>.zip`
 
 After that, CI handles everything.
+
+## Release flow
+
+1. Merge changes to `trunk`
+2. Open GitHub Actions
+3. Run the `Publish` workflow manually on `trunk`
+
+CI publishes the plugin with a UTC timestamp version.
 
 ## Secrets
 

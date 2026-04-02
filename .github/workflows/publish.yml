@@ -1,13 +1,10 @@
-name: Build
+name: Publish
 
 on:
-  push:
-    branches: [trunk]
-  pull_request:
-    branches: [trunk]
+  workflow_dispatch:
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,12 +16,12 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Build and test
-        run: ./gradlew buildPlugin test
+      - name: Run checks
+        run: ./gradlew check
 
-      - name: Sign and publish
-        if: github.event_name == 'push' && github.ref == 'refs/heads/trunk'
+      - name: Build, sign, and publish
         env:
+          IS_CI: "true"
           PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
           CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
