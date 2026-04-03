@@ -35,8 +35,20 @@ class CommentContinuationHandler(
     caret: Caret?,
     dataContext: DataContext,
   ) {
-    if (!isEnabledForCurrentShortcutMode()) {
+    // IntelliJ's built-in editor actions can invoke each other internally. Because this plugin
+    // wraps both Enter and Shift+Enter, delegating one action can otherwise re-enter this handler
+    // through the other wrapped action.
+    if (reentrySuppressionDepth.get() > 0) {
       originalHandler.execute(editor, caret, dataContext)
+      return
+    }
+    if (!isEnabledForCurrentShortcutMode()) {
+      // Suppress re-entry because "Disabled" has to apply to the full delegated call chain, not
+      // just the first wrapped action. For example, IntelliJ's Shift+Enter handler can internally
+      // invoke Enter.
+      withReentrySuppressed {
+        originalHandler.execute(editor, caret, dataContext)
+      }
       return
     }
 
@@ -146,5 +158,20 @@ class CommentContinuationHandler(
   private companion object {
     private const val MinimumCommentPrefixLength = 2
     private val log = Logger.getInstance(CommentContinuationHandler::class.java)
+
+    // Re-entry happens synchronously on the current editor-action thread, so this shares
+    // suppression state across both wrapped handlers only for the active call chain.
+    private val reentrySuppressionDepth = ThreadLocal.withInitial { 0 }
+
+    // Suppresses nested editor-action delegation on the current thread so a disabled
+    // shortcut does not re-enter comment continuation via another wrapped built-in action.
+    private inline fun withReentrySuppressed(block: () -> Unit) {
+      reentrySuppressionDepth.set(reentrySuppressionDepth.get() + 1)
+      try {
+        block()
+      } finally {
+        reentrySuppressionDepth.set(reentrySuppressionDepth.get() - 1)
+      }
+    }
   }
 }

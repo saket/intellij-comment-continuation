@@ -202,6 +202,14 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     myFixture.checkResult("// hello\n// <caret>")
   }
 
+  @Test fun `enter mode does not continue comments on shift enter`() {
+    installHandlers(
+      userPreferences = UserPreferences(shortcutMode = UserPreferences.ShortcutMode.Enter)
+    )
+    myFixture.configureByText("test.java", "// hello<caret>")
+    myFixture.performEditorAction(IdeActions.ACTION_EDITOR_START_NEW_LINE)
+    assertThat(myFixture.editor.document.text).doesNotContain("\n// ")
+  }
 
   @Test fun `does not exit comment continuation on a standalone empty comment line`() {
     testEnter(
