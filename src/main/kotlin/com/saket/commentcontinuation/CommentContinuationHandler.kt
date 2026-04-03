@@ -63,7 +63,10 @@ class CommentContinuationHandler(
     val lineNumber = document.getLineNumber(caretOffset)
     val lineStart = document.getLineStartOffset(lineNumber)
     val lineEnd = document.getLineEndOffset(lineNumber)
-    if (lineCommentMatch.isEmptyContinuationLine) {
+
+    // Only exit on second Enter for empty comment lines that were actually created by continuing a
+    // previous comment. A standalone `//` line should still continue normally.
+    if (lineCommentMatch.isEmptyContinuationLine && hasPreviousLineComment(editor, lineNumber)) {
       // Pressing Enter again on an empty generated comment line should exit the continuation,
       // similar to how markdown editors exit list items on a second Enter.
       WriteCommandAction.runWriteCommandAction(project, "Exit Comment Continuation", null, {
@@ -99,6 +102,18 @@ class CommentContinuationHandler(
       return null
     }
     return lineCommentMatch
+  }
+
+  private fun hasPreviousLineComment(editor: Editor, lineNumber: Int): Boolean {
+    if (lineNumber == 0) return false
+
+    val document = editor.document
+    val previousLineNumber = lineNumber - 1
+    val previousLineStart = document.getLineStartOffset(previousLineNumber)
+    val previousLineEnd = document.getLineEndOffset(previousLineNumber)
+    val previousLineComment = detector.findLikelyLineComment(editor, previousLineStart, previousLineEnd)
+      ?: return false
+    return detector.isConfirmedLineComment(editor, previousLineComment)
   }
 
   private fun isEnabledForCurrentShortcutMode(): Boolean {

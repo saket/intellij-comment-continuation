@@ -202,6 +202,26 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     myFixture.checkResult("// hello\n// <caret>")
   }
 
+
+  @Test fun `does not exit comment continuation on a standalone empty comment line`() {
+    testEnter(
+      fileName = "test.kt",
+      before =
+        """
+        > val someUnrelatedCode = 42
+        > 
+        >// ▮
+        """.trimMargin(">"),
+      after =
+        """
+        > val someUnrelatedCode = 42
+        > 
+        >// 
+        >// ▮
+        """.trimMargin(">"),
+    )
+  }
+
   private fun testEnter(fileName: String, before: String, after: String) {
     installHandlers()
     myFixture.configureByText(fileName, before.replace("▮", "<caret>"))
