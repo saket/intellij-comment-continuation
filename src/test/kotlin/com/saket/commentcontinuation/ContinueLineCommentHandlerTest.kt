@@ -5,8 +5,8 @@ import assertk.assertions.doesNotContain
 import assertk.assertions.isFalse
 import assertk.assertions.isGreaterThanOrEqualTo
 import com.intellij.openapi.actionSystem.IdeActions
-import com.intellij.openapi.editor.actionSystem.EditorActionManager
 import com.intellij.openapi.editor.actionSystem.EditorActionHandler
+import com.intellij.openapi.editor.actionSystem.EditorActionManager
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -200,6 +200,26 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     myFixture.configureByText("test.java", "// hello<caret>")
     myFixture.performEditorAction(IdeActions.ACTION_EDITOR_START_NEW_LINE)
     myFixture.checkResult("// hello\n// <caret>")
+  }
+
+  @Test fun `exits an unindented continuation line using the IDE indent`() {
+    testEnter(
+      fileName = "test.kt",
+      before =
+        """
+        >fun example() {
+        >// val foo = "bar"
+        >// ▮
+        >}
+        """.trimMargin(">"),
+      after =
+        """
+        >fun example() {
+        >// val foo = "bar"
+        >    ▮
+        >}
+        """.trimMargin(">"),
+    )
   }
 
   @Test fun `enter mode does not continue comments on shift enter`() {

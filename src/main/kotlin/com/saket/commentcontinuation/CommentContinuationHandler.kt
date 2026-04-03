@@ -7,6 +7,8 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.editor.Caret
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.actionSystem.EditorActionHandler
+import com.intellij.psi.PsiDocumentManager
+import com.intellij.psi.codeStyle.CodeStyleManager
 
 class CommentContinuationHandler(
   internal val originalHandler: EditorActionHandler,
@@ -83,7 +85,17 @@ class CommentContinuationHandler(
       // similar to how markdown editors exit list items on a second Enter.
       WriteCommandAction.runWriteCommandAction(project, "Exit Comment Continuation", null, {
         document.deleteString(lineCommentMatch.start, lineEnd)
-        activeCaret.moveToOffset(lineCommentMatch.start)
+
+        // Match the IDE's normal Enter behavior after removing the generated `//`: resync PSI,
+        // re-indent the now-blank line, then move the caret to the end of that indent.
+        val psiFile = PsiDocumentManager.getInstance(project).let {
+          it.commitDocument(document)
+          it.getPsiFile(document)
+        }
+        if (psiFile != null) {
+          CodeStyleManager.getInstance(project).adjustLineIndent(psiFile, lineStart)
+        }
+        activeCaret.moveToOffset(document.getLineEndOffset(lineNumber))
       })
       return
     }
@@ -123,8 +135,9 @@ class CommentContinuationHandler(
     val previousLineNumber = lineNumber - 1
     val previousLineStart = document.getLineStartOffset(previousLineNumber)
     val previousLineEnd = document.getLineEndOffset(previousLineNumber)
-    val previousLineComment = detector.findLikelyLineComment(editor, previousLineStart, previousLineEnd)
-      ?: return false
+    val previousLineComment =
+      detector.findLikelyLineComment(editor, previousLineStart, previousLineEnd)
+        ?: return false
     return detector.isConfirmedLineComment(editor, previousLineComment)
   }
 
