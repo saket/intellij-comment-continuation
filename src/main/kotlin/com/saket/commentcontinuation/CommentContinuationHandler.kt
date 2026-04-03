@@ -73,10 +73,10 @@ class CommentContinuationHandler(
       return
     }
 
-    val chars = document.charsSequence
     val lineNumber = document.getLineNumber(caretOffset)
     val lineStart = document.getLineStartOffset(lineNumber)
     val lineEnd = document.getLineEndOffset(lineNumber)
+    val lineIndent = document.charsSequence.subSequence(lineStart, lineCommentMatch.start).toString()
 
     // Only exit on second Enter for empty comment lines that were actually created by continuing a
     // previous comment. A standalone `//` line should still continue normally.
@@ -100,10 +100,29 @@ class CommentContinuationHandler(
       return
     }
 
-    val textToInsert = buildContinuationText(chars, lineStart, lineCommentMatch)
+    val commentPrefix = buildContinuationPrefix(document.charsSequence, lineCommentMatch)
+    val commentMarker = commentPrefix.removeSuffix(" ")
+    withReentrySuppressed {
+      originalHandler.execute(editor, caret, dataContext)
+    }
     WriteCommandAction.runWriteCommandAction(project, "Comment Continuation", null, {
-      document.insertString(caretOffset, textToInsert)
-      activeCaret.moveToOffset(caretOffset + textToInsert.length)
+      val currentLineNumber = document.getLineNumber(activeCaret.offset)
+      val currentLineStart = document.getLineStartOffset(currentLineNumber)
+      val currentIndentEnd = findIndentEnd(document.charsSequence, currentLineStart)
+      val currentIndentLength = currentIndentEnd - currentLineStart
+      if (lineIndent != document.charsSequence.subSequence(currentLineStart, currentIndentEnd).toString()) {
+        document.replaceString(currentLineStart, currentIndentEnd, lineIndent)
+        if (activeCaret.offset >= currentIndentEnd) {
+          activeCaret.moveToOffset(activeCaret.offset + (lineIndent.length - currentIndentLength))
+        }
+      }
+      if (lineAlreadyHasCommentMarker(document, activeCaret.offset, lineIndent, commentMarker)) {
+        return@runWriteCommandAction
+      }
+
+      val insertionOffset = activeCaret.offset
+      document.insertString(insertionOffset, commentPrefix)
+      activeCaret.moveToOffset(insertionOffset + commentPrefix.length)
     })
   }
 
@@ -138,23 +157,42 @@ class CommentContinuationHandler(
     }
   }
 
-  private fun buildContinuationText(
+  private fun buildContinuationPrefix(
     chars: CharSequence,
-    lineStart: Int,
     lineCommentMatch: LineCommentMatch,
   ): String {
-    val indentLength = lineCommentMatch.start - lineStart
     val commentPrefixLength = lineCommentMatch.prefixEnd - lineCommentMatch.start
-    return buildString(indentLength + commentPrefixLength + MinimumCommentPrefixLength) {
-      append('\n')
-      for (offset in lineStart until lineCommentMatch.start) {
-        append(chars[offset])
-      }
+    return buildString(commentPrefixLength + MinimumCommentPrefixLength) {
       for (offset in lineCommentMatch.start until lineCommentMatch.prefixEnd) {
         append(chars[offset])
       }
       append(' ')
     }
+  }
+
+  private fun lineAlreadyHasCommentMarker(
+    document: com.intellij.openapi.editor.Document,
+    caretOffset: Int,
+    expectedIndent: String,
+    commentMarker: String,
+  ): Boolean {
+    val chars = document.charsSequence
+    val lineNumber = document.getLineNumber(caretOffset)
+    val lineStart = document.getLineStartOffset(lineNumber)
+    val markerStart = lineStart + expectedIndent.length
+    val markerEnd = markerStart + commentMarker.length
+    if (markerEnd > document.getLineEndOffset(lineNumber)) {
+      return false
+    }
+    return chars.subSequence(markerStart, markerEnd).toString() == commentMarker
+  }
+
+  private fun findIndentEnd(chars: CharSequence, lineStart: Int): Int {
+    var offset = lineStart
+    while (offset < chars.length && (chars[offset] == ' ' || chars[offset] == '\t')) {
+      offset++
+    }
+    return offset
   }
 
   @Suppress("ConstPropertyName")
