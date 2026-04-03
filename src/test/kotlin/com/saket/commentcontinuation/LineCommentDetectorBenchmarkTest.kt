@@ -10,12 +10,16 @@ import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.JUnit4
 import kotlin.time.Duration
 import kotlin.time.measureTime
 
+@RunWith(JUnit4::class)
 class LineCommentDetectorBenchmarkTest : BasePlatformTestCase() {
 
-  fun `test string scanning is faster than PSI for rejecting non comment lines`() {
+  @Test fun `string scanning is faster than PSI for rejecting non comment lines`() {
     myFixture.configureByText("View.java", FileContent)
     val lines = FileContent.lines()
 

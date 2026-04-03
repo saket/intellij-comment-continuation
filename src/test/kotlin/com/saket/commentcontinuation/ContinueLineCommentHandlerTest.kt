@@ -8,9 +8,13 @@ import com.intellij.openapi.actionSystem.IdeActions
 import com.intellij.openapi.editor.actionSystem.EditorActionManager
 import com.intellij.openapi.editor.actionSystem.EditorActionHandler
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.JUnit4
 
+@RunWith(JUnit4::class)
 class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
-  fun `test continues a Java comment when pressing enter at the end`() {
+  @Test fun `continues a Java comment when pressing enter at the end`() {
     testEnter(
       fileName = "test.java",
       before =
@@ -25,7 +29,7 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     )
   }
 
-  fun `test continues a Kotlin comment when pressing enter in the middle`() {
+  @Test fun `continues a Kotlin comment when pressing enter in the middle`() {
     testEnter(
       fileName = "test.kt",
       before =
@@ -40,7 +44,7 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     )
   }
 
-  fun `test keeps leading spaces on the next line`() {
+  @Test fun `keeps leading spaces on the next line`() {
     testEnter(
       fileName = "test.java",
       before =
@@ -55,7 +59,7 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     )
   }
 
-  fun `test keeps leading tabs on the next line`() {
+  @Test fun `keeps leading tabs on the next line`() {
     testEnter(
       fileName = "test.kt",
       before =
@@ -70,7 +74,7 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     )
   }
 
-  fun `test works with triple slash comments`() {
+  @Test fun `works with triple slash comments`() {
     testEnter(
       fileName = "test.java",
       before =
@@ -85,7 +89,7 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     )
   }
 
-  fun `test works on a comment that has no space after slashes`() {
+  @Test fun `works on a comment that has no space after slashes`() {
     testEnter(
       fileName = "test.kt",
       before =
@@ -100,7 +104,7 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     )
   }
 
-  fun `test exits an auto continued comment on second enter`() {
+  @Test fun `exits an auto continued comment on second enter`() {
     testEnter(
       fileName = "test.java",
       before =
@@ -116,7 +120,7 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     )
   }
 
-  fun `test exits an auto continued indented comment on second enter`() {
+  @Test fun `exits an auto continued indented comment on second enter`() {
     testEnter(
       fileName = "test.kt",
       before =
@@ -132,7 +136,7 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     )
   }
 
-  fun `test continues comments for multiple carets independently`() {
+  @Test fun `continues comments for multiple carets independently`() {
     testEnter(
       fileName = "test.java",
       before =
@@ -150,21 +154,21 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     )
   }
 
-  fun `test does not continue when the caret is before the comment`() {
+  @Test fun `does not continue when the caret is before the comment`() {
     installHandlers()
     myFixture.configureByText("test.java", "▮// hello".replace("▮", "<caret>"))
     myFixture.performEditorAction(IdeActions.ACTION_EDITOR_ENTER)
     myFixture.checkResult("\n<caret>// hello")
   }
 
-  fun `test does not continue for lines that are just code`() {
+  @Test fun `does not continue for lines that are just code`() {
     installHandlers()
     myFixture.configureByText("test.java", "val x = 1▮".replace("▮", "<caret>"))
     myFixture.performEditorAction(IdeActions.ACTION_EDITOR_ENTER)
     assertThat(myFixture.editor.document.text).doesNotContain("//")
   }
 
-  fun `test does not continue for comments that appear after code`() {
+  @Test fun `does not continue for comments that appear after code`() {
     installHandlers()
     myFixture.configureByText("test.java", "val x = 1 // comment▮".replace("▮", "<caret>"))
     myFixture.performEditorAction(IdeActions.ACTION_EDITOR_ENTER)
@@ -173,14 +177,14 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     assertThat(lines.last().trimStart().startsWith("//")).isFalse()
   }
 
-  fun `test does not continue comments in unsupported file types`() {
+  @Test fun `does not continue comments in unsupported file types`() {
     installHandlers()
     myFixture.configureByText("test.js", "// hello<caret>")
     myFixture.performEditorAction(IdeActions.ACTION_EDITOR_ENTER)
     assertThat(myFixture.editor.document.text).doesNotContain("\n// ")
   }
 
-  fun `test shift enter mode disables enter continuation`() {
+  @Test fun `shift enter mode disables enter continuation`() {
     installHandlers(
       UserPreferences(shortcutMode = UserPreferences.ShortcutMode.ShiftEnter)
     )
@@ -189,7 +193,7 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     assertThat(myFixture.editor.document.text).doesNotContain("\n// ")
   }
 
-  fun `test shift enter mode continues comments`() {
+  @Test fun `shift enter mode continues comments`() {
     installHandlers(
       UserPreferences(shortcutMode = UserPreferences.ShortcutMode.ShiftEnter)
     )
