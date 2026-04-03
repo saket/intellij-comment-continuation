@@ -7,7 +7,36 @@ import com.intellij.psi.util.PsiTreeUtil
 
 class StringScanLineCommentDetector : LineCommentDetector {
 
-  override fun findLikelyLineComment(
+  override fun findLineComment(
+    editor: Editor,
+    lineStart: Int,
+    lineEnd: Int
+  ): LineCommentMatch? {
+    val lineCommentMatch = fastRejectThenParseLineComment(editor, lineStart, lineEnd) ?: return null
+
+    val project = editor.project ?: return null
+    val psiDocumentManager = PsiDocumentManager.getInstance(project)
+    psiDocumentManager.commitDocument(editor.document)
+    val psiFile = psiDocumentManager.getPsiFile(editor.document) ?: return null
+
+    // The raw precheck keeps PSI off the hot path for normal Enter presses. Once we are here,
+    // use PSI only as a semantic confirmation that this is a supported Java/Kotlin line comment.
+    val fileExtension = psiFile.virtualFile?.extension ?: psiFile.fileType.defaultExtension
+    if (fileExtension !in supportedFileExtensions) return null
+
+    val element = psiFile.findElementAt(lineCommentMatch.start) ?: return null
+    val comment = (element as? PsiComment)
+      ?: PsiTreeUtil.getParentOfType(element, PsiComment::class.java, false)
+      ?: return null
+
+    return if (comment.textOffset == lineCommentMatch.start && comment.text.startsWith("//")) {
+      lineCommentMatch
+    } else {
+      null
+    }
+  }
+
+  private fun fastRejectThenParseLineComment(
     editor: Editor,
     lineStart: Int,
     lineEnd: Int
@@ -15,7 +44,8 @@ class StringScanLineCommentDetector : LineCommentDetector {
     val chars = editor.document.charsSequence
     var offset = lineStart
 
-    // Skip whitespaces.
+    // Only spaces and tabs count as source indentation here. Using explicit char checks also keeps
+    // the hot-path precheck cheaper than a broader Char#isWhitespace-style classification.
     while (offset < lineEnd && (chars[offset] == ' ' || chars[offset] == '\t')) {
       offset++
     }
@@ -38,25 +68,6 @@ class StringScanLineCommentDetector : LineCommentDetector {
       prefixEnd = prefixEnd,
       isEmptyContinuationLine = isEmptyContinuationLine,
     )
-  }
-
-  override fun isConfirmedLineComment(editor: Editor, match: LineCommentMatch): Boolean {
-    val project = editor.project ?: return false
-    val psiDocumentManager = PsiDocumentManager.getInstance(project)
-    psiDocumentManager.commitDocument(editor.document)
-    val psiFile = psiDocumentManager.getPsiFile(editor.document) ?: return false
-
-    // The raw precheck keeps PSI off the hot path for normal Enter presses. Once we are here,
-    // use PSI only as a semantic confirmation that this is a supported Java/Kotlin line comment.
-    val fileExtension = psiFile.virtualFile?.extension ?: psiFile.fileType.defaultExtension
-    if (fileExtension !in supportedFileExtensions) return false
-
-    val element = psiFile.findElementAt(match.start) ?: return false
-    val comment = (element as? PsiComment)
-      ?: PsiTreeUtil.getParentOfType(element, PsiComment::class.java, false)
-      ?: return false
-
-    return comment.textOffset == match.start && comment.text.startsWith("//")
   }
 
   @Suppress("ConstPropertyName")

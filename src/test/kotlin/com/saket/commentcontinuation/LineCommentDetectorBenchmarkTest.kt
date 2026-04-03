@@ -74,7 +74,7 @@ class LineCommentDetectorBenchmarkTest : BasePlatformTestCase() {
     """.trimMargin()
     )
 
-    assertThat(speedup).isGreaterThan(1.0)
+    assertThat(speedup).isGreaterThan(20.0)
   }
 
   private fun benchmarkHandler(
@@ -110,7 +110,7 @@ class LineCommentDetectorBenchmarkTest : BasePlatformTestCase() {
 
 /** Baseline detector that uses PSI tree traversal, used only for benchmark comparison. */
 private class PsiOnlyLineCommentDetector : LineCommentDetector {
-  override fun findLikelyLineComment(
+  override fun findLineComment(
     editor: Editor,
     lineStart: Int,
     lineEnd: Int
@@ -139,6 +139,4 @@ private class PsiOnlyLineCommentDetector : LineCommentDetector {
       isEmptyContinuationLine = isEmptyContinuationLine,
     )
   }
-
-  override fun isConfirmedLineComment(editor: Editor, match: LineCommentMatch): Boolean = true
 }

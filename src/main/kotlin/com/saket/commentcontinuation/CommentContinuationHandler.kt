@@ -113,16 +113,9 @@ class CommentContinuationHandler(
     val lineStart = document.getLineStartOffset(lineNumber)
     val lineEnd = document.getLineEndOffset(lineNumber)
 
-    // Raw string scanning is the hot-path filter. PSI only runs for likely comment lines.
-    val lineCommentMatch = detector.findLikelyLineComment(editor, lineStart, lineEnd)
+    val lineCommentMatch = detector.findLineComment(editor, lineStart, lineEnd)
     if (lineCommentMatch == null || caretOffset <= lineCommentMatch.start + 1) {
       // This excludes normal code, trailing comments, and carets placed before the comment marker.
-      return null
-    }
-
-    // Only override Enter for Java/Kotlin line comments. Everything else should keep the IDE's
-    // built-in Enter behavior.
-    if (!detector.isConfirmedLineComment(editor, lineCommentMatch)) {
       return null
     }
     return lineCommentMatch
@@ -135,10 +128,7 @@ class CommentContinuationHandler(
     val previousLineNumber = lineNumber - 1
     val previousLineStart = document.getLineStartOffset(previousLineNumber)
     val previousLineEnd = document.getLineEndOffset(previousLineNumber)
-    val previousLineComment =
-      detector.findLikelyLineComment(editor, previousLineStart, previousLineEnd)
-        ?: return false
-    return detector.isConfirmedLineComment(editor, previousLineComment)
+    return detector.findLineComment(editor, previousLineStart, previousLineEnd) != null
   }
 
   private fun isEnabledForCurrentShortcutMode(): Boolean {
