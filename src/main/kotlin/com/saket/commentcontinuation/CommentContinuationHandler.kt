@@ -158,17 +158,17 @@ class CommentContinuationHandler(
   }
 
   @Suppress("ConstPropertyName")
-  private companion object {
+  companion object {
     private const val MinimumCommentPrefixLength = 2
     private val log = Logger.getInstance(CommentContinuationHandler::class.java)
 
     // Re-entry happens synchronously on the current editor-action thread, so this shares
     // suppression state across both wrapped handlers only for the active call chain.
-    private val reentrySuppressionDepth = ThreadLocal.withInitial { 0 }
+    val reentrySuppressionDepth: ThreadLocal<Int> = ThreadLocal.withInitial { 0 }
 
     // Suppresses nested editor-action delegation on the current thread so a disabled
     // shortcut does not re-enter comment continuation via another wrapped built-in action.
-    private inline fun withReentrySuppressed(block: () -> Unit) {
+    inline fun withReentrySuppressed(block: () -> Unit) {
       reentrySuppressionDepth.set(reentrySuppressionDepth.get() + 1)
       try {
         block()
