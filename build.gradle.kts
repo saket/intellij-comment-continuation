@@ -47,6 +47,10 @@ tasks.test {
   }
 }
 
+tasks.check {
+  dependsOn(tasks.verifyPlugin)
+}
+
 intellijPlatform {
   fun extractPluginDescription(readme: String): String {
     val startMarker = "<!-- Plugin description -->"
@@ -88,6 +92,12 @@ intellijPlatform {
 
   publishing {
     token = providers.environmentVariable("PUBLISH_TOKEN")
+  }
+
+  pluginVerification {
+    ides {
+      ide(providers.gradleProperty("platformVersion"))
+    }
   }
 }
 
