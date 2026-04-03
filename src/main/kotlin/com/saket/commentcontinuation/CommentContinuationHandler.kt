@@ -130,7 +130,7 @@ class CommentContinuationHandler(
   ): String {
     val indentLength = lineCommentMatch.start - lineStart
     val commentPrefixLength = lineCommentMatch.prefixEnd - lineCommentMatch.start
-    return buildString(indentLength + commentPrefixLength + minimumCommentPrefixLength) {
+    return buildString(indentLength + commentPrefixLength + MinimumCommentPrefixLength) {
       append('\n')
       for (offset in lineStart until lineCommentMatch.start) {
         append(chars[offset])
@@ -142,8 +142,9 @@ class CommentContinuationHandler(
     }
   }
 
+  @Suppress("ConstPropertyName")
   private companion object {
-    private const val minimumCommentPrefixLength = 2
+    private const val MinimumCommentPrefixLength = 2
     private val log = Logger.getInstance(CommentContinuationHandler::class.java)
   }
 }
