@@ -44,6 +44,23 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     )
   }
 
+  @Test fun `continues a Groovy comment when pressing enter at the end`() {
+    // Groovy is not in the original {java, kt} allowlist, but its line comment prefix is `//`,
+    // so the Commenter-based gate should accept it.
+    testEnter(
+      fileName = "test.groovy",
+      before =
+        """
+        >// hello▮
+        """.trimMargin(">"),
+      after =
+        """
+        >// hello
+        >// ▮
+        """.trimMargin(">"),
+    )
+  }
+
   @Test fun `keeps leading spaces on the next line`() {
     testEnter(
       fileName = "test.java",
