@@ -177,9 +177,19 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     assertThat(lines.last().trimStart().startsWith("//")).isFalse()
   }
 
-  @Test fun `does not continue comments in unsupported file types`() {
+  @Test fun `does not continue in languages whose line comment prefix is not slash slash`() {
+    // Properties files use `#` for line comments, so even a literal `//` at the start of a line
+    // should not trigger continuation.
     installHandlers()
-    myFixture.configureByText("test.js", "// hello<caret>")
+    myFixture.configureByText("test.properties", "// hello<caret>")
+    myFixture.performEditorAction(IdeActions.ACTION_EDITOR_ENTER)
+    assertThat(myFixture.editor.document.text).doesNotContain("\n// ")
+  }
+
+  @Test fun `does not continue in plain text files`() {
+    // Plain text has no Commenter at all, so `//` is just text.
+    installHandlers()
+    myFixture.configureByText("test.txt", "// hello<caret>")
     myFixture.performEditorAction(IdeActions.ACTION_EDITOR_ENTER)
     assertThat(myFixture.editor.document.text).doesNotContain("\n// ")
   }
