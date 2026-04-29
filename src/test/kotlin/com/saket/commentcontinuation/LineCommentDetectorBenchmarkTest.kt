@@ -135,7 +135,7 @@ private class PsiOnlyLineCommentDetector : LineCommentDetector {
     val afterPrefix = comment.text.drop(commentEnd - commentStart)
     return LineCommentMatch(
       markerRange = TextRange(commentStart, commentEnd),
-      indent = afterPrefix.takeWhile { it == ' ' || it == '\t' }.ifEmpty { " " },
+      indent = afterPrefix.takeWhile { it == ' ' || it == '\t' },
       isEmptyContinuationLine = afterPrefix.all { it.isWhitespace() },
     )
   }

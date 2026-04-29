@@ -148,9 +148,7 @@ class CommentContinuationHandler(
     append(lineCommentMatch.indent)
   }
 
-  @Suppress("ConstPropertyName")
   companion object {
-    private const val MinimumCommentPrefixLength = 2
     private val log = Logger.getInstance(CommentContinuationHandler::class.java)
 
     // Re-entry happens synchronously on the current editor-action thread, so this shares

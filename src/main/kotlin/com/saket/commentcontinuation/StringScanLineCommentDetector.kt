@@ -71,11 +71,10 @@ class StringScanLineCommentDetector : LineCommentDetector {
       indentEnd++
     }
 
-    val indent = if (indentEnd == prefixEnd) " " else chars.substring(prefixEnd, indentEnd)
     val isEmptyContinuationLine = (indentEnd until lineEnd).all { chars[it].isWhitespace() }
     return LineCommentMatch(
       markerRange = TextRange(offset, prefixEnd),
-      indent = indent,
+      indent = chars.substring(prefixEnd, indentEnd),
       isEmptyContinuationLine = isEmptyContinuationLine,
     )
   }

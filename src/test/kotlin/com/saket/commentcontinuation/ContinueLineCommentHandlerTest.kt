@@ -89,7 +89,7 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     )
   }
 
-  @Test fun `works on a comment that has no space after slashes`() {
+  @Test fun `keeps the lack of space after slashes when continuing`() {
     testEnter(
       fileName = "test.kt",
       before =
@@ -99,7 +99,7 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
       after =
         """
         >//hello
-        >// ▮
+        >//▮
         """.trimMargin(">"),
     )
   }
