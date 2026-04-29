@@ -24,12 +24,15 @@ class StringScanLineCommentDetector : LineCommentDetector {
     val fileExtension = psiFile.virtualFile?.extension ?: psiFile.fileType.defaultExtension
     if (fileExtension !in supportedFileExtensions) return null
 
-    val element = psiFile.findElementAt(lineCommentMatch.start) ?: return null
+    val element = psiFile.findElementAt(lineCommentMatch.markerRange.start) ?: return null
     val comment = (element as? PsiComment)
       ?: PsiTreeUtil.getParentOfType(element, PsiComment::class.java, false)
       ?: return null
 
-    return if (comment.textOffset == lineCommentMatch.start && comment.text.startsWith("//")) {
+    return if (
+      comment.textOffset == lineCommentMatch.markerRange.start &&
+      comment.text.startsWith("//")
+    ) {
       lineCommentMatch
     } else {
       null
@@ -62,10 +65,17 @@ class StringScanLineCommentDetector : LineCommentDetector {
       prefixEnd++
     }
 
-    val isEmptyContinuationLine = (prefixEnd until lineEnd).all { chars[it].isWhitespace() }
+    var indentEnd = prefixEnd
+    // todo: extract a Char#isWhitespaceFoo somewhere because this check is being done in two other places.
+    while (indentEnd < lineEnd && (chars[indentEnd] == ' ' || chars[indentEnd] == '\t')) {
+      indentEnd++
+    }
+
+    val indent = if (indentEnd == prefixEnd) " " else chars.substring(prefixEnd, indentEnd)
+    val isEmptyContinuationLine = (indentEnd until lineEnd).all { chars[it].isWhitespace() }
     return LineCommentMatch(
-      start = offset,
-      prefixEnd = prefixEnd,
+      markerRange = TextRange(offset, prefixEnd),
+      indent = indent,
       isEmptyContinuationLine = isEmptyContinuationLine,
     )
   }

@@ -104,6 +104,46 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     )
   }
 
+  @Test fun `preserves extra indent between the comment marker and content`() {
+    testEnter(
+      fileName = "test.kt",
+      before =
+        """
+        >// TODO
+        >//  I am a
+        >//  multi-line comment▮
+        """.trimMargin(">"),
+      after =
+        """
+        >// TODO
+        >//  I am a
+        >//  multi-line comment
+        >//  ▮
+        """.trimMargin(">"),
+    )
+  }
+
+  @Test fun `preserves indent of a deeply nested list item`() {
+    testEnter(
+      fileName = "test.kt",
+      before =
+        """
+        >// shopping list:
+        >// - fruits
+        >//   - tropical
+        >//     - mangoes▮
+        """.trimMargin(">"),
+      after =
+        """
+        >// shopping list:
+        >// - fruits
+        >//   - tropical
+        >//     - mangoes
+        >//     ▮
+        """.trimMargin(">"),
+    )
+  }
+
   @Test fun `exits an auto continued comment on second enter`() {
     testEnter(
       fileName = "test.java",

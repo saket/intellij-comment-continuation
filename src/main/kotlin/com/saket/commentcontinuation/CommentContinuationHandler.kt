@@ -84,7 +84,7 @@ class CommentContinuationHandler(
       // Pressing Enter again on an empty generated comment line should exit the continuation,
       // similar to how markdown editors exit list items on a second Enter.
       WriteCommandAction.runWriteCommandAction(project, "Exit Comment Continuation", null, {
-        document.deleteString(lineCommentMatch.start, lineEnd)
+        document.deleteString(lineCommentMatch.markerRange.start, lineEnd)
 
         // Match the IDE's normal Enter behavior after removing the generated `//`: resync PSI,
         // re-indent the now-blank line, then move the caret to the end of that indent.
@@ -114,7 +114,7 @@ class CommentContinuationHandler(
     val lineEnd = document.getLineEndOffset(lineNumber)
 
     val lineCommentMatch = detector.findLineComment(editor, lineStart, lineEnd)
-    if (lineCommentMatch == null || caretOffset <= lineCommentMatch.start + 1) {
+    if (lineCommentMatch == null || caretOffset <= lineCommentMatch.markerRange.start + 1) {
       // This excludes normal code, trailing comments, and carets placed before the comment marker.
       return null
     }
@@ -142,19 +142,10 @@ class CommentContinuationHandler(
     chars: CharSequence,
     lineStart: Int,
     lineCommentMatch: LineCommentMatch,
-  ): String {
-    val indentLength = lineCommentMatch.start - lineStart
-    val commentPrefixLength = lineCommentMatch.prefixEnd - lineCommentMatch.start
-    return buildString(indentLength + commentPrefixLength + MinimumCommentPrefixLength) {
-      append('\n')
-      for (offset in lineStart until lineCommentMatch.start) {
-        append(chars[offset])
-      }
-      for (offset in lineCommentMatch.start until lineCommentMatch.prefixEnd) {
-        append(chars[offset])
-      }
-      append(' ')
-    }
+  ): String = buildString {
+    append('\n')
+    append(chars, lineStart, lineCommentMatch.markerRange.end)
+    append(lineCommentMatch.indent)
   }
 
   @Suppress("ConstPropertyName")
