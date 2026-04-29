@@ -14,6 +14,6 @@ data class LineCommentMatch(
   /** Whitespace (spaces/tabs) between the marker and the comment's content. */
   val indent: String,
 
-  // todo: kdoc.
+  /** True when no content follows the marker on this line (e.g. `//` or `//   `). */
   val isEmptyContinuationLine: Boolean,
 )

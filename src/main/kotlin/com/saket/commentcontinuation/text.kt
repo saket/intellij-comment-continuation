@@ -7,3 +7,7 @@ package com.saket.commentcontinuation
 data class TextRange(val start: Int, val end: Int) {
   val length: Int get() = end - start
 }
+
+internal fun Char.isHorizontalWhitespace(): Boolean {
+  return this == ' ' || this == '\t'
+}

@@ -49,7 +49,7 @@ class StringScanLineCommentDetector : LineCommentDetector {
 
     // Only spaces and tabs count as source indentation here. Using explicit char checks also keeps
     // the hot-path precheck cheaper than a broader Char#isWhitespace-style classification.
-    while (offset < lineEnd && (chars[offset] == ' ' || chars[offset] == '\t')) {
+    while (offset < lineEnd && chars[offset].isHorizontalWhitespace()) {
       offset++
     }
 
@@ -66,8 +66,7 @@ class StringScanLineCommentDetector : LineCommentDetector {
     }
 
     var indentEnd = prefixEnd
-    // todo: extract a Char#isWhitespaceFoo somewhere because this check is being done in two other places.
-    while (indentEnd < lineEnd && (chars[indentEnd] == ' ' || chars[indentEnd] == '\t')) {
+    while (indentEnd < lineEnd && chars[indentEnd].isHorizontalWhitespace()) {
       indentEnd++
     }
 

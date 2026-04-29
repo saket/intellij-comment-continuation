@@ -19,7 +19,6 @@ import kotlin.time.measureTime
 @RunWith(JUnit4::class)
 class LineCommentDetectorBenchmarkTest : BasePlatformTestCase() {
 
-  // todo: use kotlinx-benchmark.
   @Test fun `string scanning is faster than PSI for rejecting non comment lines`() {
     myFixture.configureByText("View.java", FileContent)
     val lines = FileContent.lines()
@@ -135,7 +134,7 @@ private class PsiOnlyLineCommentDetector : LineCommentDetector {
     val afterPrefix = comment.text.drop(commentEnd - commentStart)
     return LineCommentMatch(
       markerRange = TextRange(commentStart, commentEnd),
-      indent = afterPrefix.takeWhile { it == ' ' || it == '\t' },
+      indent = afterPrefix.takeWhile { it.isHorizontalWhitespace() },
       isEmptyContinuationLine = afterPrefix.all { it.isWhitespace() },
     )
   }
