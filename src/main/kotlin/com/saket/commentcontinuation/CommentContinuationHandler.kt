@@ -9,6 +9,7 @@ import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.actionSystem.EditorActionHandler
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.codeStyle.CodeStyleManager
+import com.saket.commentcontinuation.UserPreferences.EnterOnEmptyLineBehavior
 
 class CommentContinuationHandler(
   internal val originalHandler: EditorActionHandler,
@@ -80,24 +81,51 @@ class CommentContinuationHandler(
 
     // Only exit on second Enter for empty comment lines that were actually created by continuing a
     // previous comment. A standalone `//` line should still continue normally.
-    if (lineCommentMatch.isEmptyContinuationLine && hasPreviousLineComment(editor, lineNumber)) {
-      // Pressing Enter again on an empty generated comment line should exit the continuation,
-      // similar to how markdown editors exit list items on a second Enter.
-      WriteCommandAction.runWriteCommandAction(project, "Exit Comment Continuation", null, {
-        document.deleteString(lineCommentMatch.markerRange.start, lineEnd)
+    if (lineCommentMatch.isEmptyContinuationLine && lineNumber > 0) {
+      // todo: why collect all indent levels when just the last one is needed?
+      val blockIndents = collectContiguousBlockIndents(editor, lineNumber - 1)
+      if (blockIndents.isNotEmpty()) {
+        val nextSmallerIndent = when (userPreferencesReader.read().emptyLineBehavior) {
+          EnterOnEmptyLineBehavior.StepBack -> {
+            blockIndents
+              .filter { it.length < lineCommentMatch.indent.length }
+              .maxByOrNull { it.length }
+          }
+          EnterOnEmptyLineBehavior.Exit -> {
+            null
+          }
+        }
 
-        // Match the IDE's normal Enter behavior after removing the generated `//`: resync PSI,
-        // re-indent the now-blank line, then move the caret to the end of that indent.
-        val psiFile = PsiDocumentManager.getInstance(project).let {
-          it.commitDocument(document)
-          it.getPsiFile(document)
+        if (nextSmallerIndent != null) {
+          // Pressing Enter on a deeper-indented empty continuation line should first step back one
+          // indent level. Repeat presses keep stepping back until the indent matches the comment's
+          // first line, after which Enter exits the continuation.
+          WriteCommandAction.runWriteCommandAction(project, "Step Back Comment Indent", null, {
+            val indentStart = lineCommentMatch.markerRange.end
+            val indentEnd = indentStart + lineCommentMatch.indent.length
+            document.replaceString(indentStart, indentEnd, nextSmallerIndent)
+            activeCaret.moveToOffset(indentStart + nextSmallerIndent.length)
+          })
+        } else {
+          // Pressing Enter again on an empty generated comment line should exit the continuation,
+          // similar to how markdown editors exit list items on a second Enter.
+          WriteCommandAction.runWriteCommandAction(project, "Exit Comment Continuation", null, {
+            document.deleteString(lineCommentMatch.markerRange.start, lineEnd)
+
+            // Match the IDE's normal Enter behavior after removing the generated `//`: resync PSI,
+            // re-indent the now-blank line, then move the caret to the end of that indent.
+            val psiFile = PsiDocumentManager.getInstance(project).let {
+              it.commitDocument(document)
+              it.getPsiFile(document)
+            }
+            if (psiFile != null) {
+              CodeStyleManager.getInstance(project).adjustLineIndent(psiFile, lineStart)
+            }
+            activeCaret.moveToOffset(document.getLineEndOffset(lineNumber))
+          })
         }
-        if (psiFile != null) {
-          CodeStyleManager.getInstance(project).adjustLineIndent(psiFile, lineStart)
-        }
-        activeCaret.moveToOffset(document.getLineEndOffset(lineNumber))
-      })
-      return
+        return
+      }
     }
 
     val textToInsert = buildContinuationText(chars, lineStart, lineCommentMatch)
@@ -121,14 +149,26 @@ class CommentContinuationHandler(
     return lineCommentMatch
   }
 
-  private fun hasPreviousLineComment(editor: Editor, lineNumber: Int): Boolean {
-    if (lineNumber == 0) return false
-
+  /**
+   * Walks upward from [startLineNumber] through contiguous line comments and returns the in-comment
+   * indent of each one. Returns an empty list if [startLineNumber] is not itself a line comment, so
+   * callers can use emptiness as a "no prior comment" signal.
+   */
+  private fun collectContiguousBlockIndents(
+    editor: Editor,
+    startLineNumber: Int,
+  ): List<String> {
     val document = editor.document
-    val previousLineNumber = lineNumber - 1
-    val previousLineStart = document.getLineStartOffset(previousLineNumber)
-    val previousLineEnd = document.getLineEndOffset(previousLineNumber)
-    return detector.findLineComment(editor, previousLineStart, previousLineEnd) != null
+    val indents = mutableListOf<String>()
+    var lineNumber = startLineNumber
+    while (lineNumber >= 0) {
+      val lineStart = document.getLineStartOffset(lineNumber)
+      val lineEnd = document.getLineEndOffset(lineNumber)
+      val match = detector.findLineComment(editor, lineStart, lineEnd) ?: break
+      indents += match.indent
+      lineNumber--
+    }
+    return indents
   }
 
   private fun isEnabledForCurrentShortcutMode(): Boolean {

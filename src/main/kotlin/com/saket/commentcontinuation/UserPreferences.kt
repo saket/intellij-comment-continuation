@@ -7,11 +7,17 @@ import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 
 data class UserPreferences(
-  val shortcutMode: ShortcutMode = ShortcutMode.Enter
+  val shortcutMode: ShortcutMode = ShortcutMode.Enter,
+  val emptyLineBehavior: EnterOnEmptyLineBehavior = EnterOnEmptyLineBehavior.Exit,
 ) {
   enum class ShortcutMode(val displayName: String) {
     Enter("Enter"),
     ShiftEnter("Shift + Enter");
+  }
+
+  enum class EnterOnEmptyLineBehavior(val displayName: String) {
+    Exit("Exit the comment"),
+    StepBack("Step back one indent level");
   }
 }
 

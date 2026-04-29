@@ -8,6 +8,8 @@ import com.intellij.openapi.actionSystem.IdeActions
 import com.intellij.openapi.editor.actionSystem.EditorActionHandler
 import com.intellij.openapi.editor.actionSystem.EditorActionManager
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.saket.commentcontinuation.UserPreferences.EnterOnEmptyLineBehavior
+import com.saket.commentcontinuation.UserPreferences.ShortcutMode
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
@@ -226,7 +228,7 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
 
   @Test fun `shift enter mode disables enter continuation`() {
     installHandlers(
-      UserPreferences(shortcutMode = UserPreferences.ShortcutMode.ShiftEnter)
+      UserPreferences(shortcutMode = ShortcutMode.ShiftEnter)
     )
     myFixture.configureByText("test.java", "// hello<caret>")
     myFixture.performEditorAction(IdeActions.ACTION_EDITOR_ENTER)
@@ -235,7 +237,7 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
 
   @Test fun `shift enter mode continues comments`() {
     installHandlers(
-      UserPreferences(shortcutMode = UserPreferences.ShortcutMode.ShiftEnter)
+      UserPreferences(shortcutMode = ShortcutMode.ShiftEnter)
     )
     myFixture.configureByText("test.java", "// hello<caret>")
     myFixture.performEditorAction(IdeActions.ACTION_EDITOR_START_NEW_LINE)
@@ -264,11 +266,93 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
 
   @Test fun `enter mode does not continue comments on shift enter`() {
     installHandlers(
-      userPreferences = UserPreferences(shortcutMode = UserPreferences.ShortcutMode.Enter)
+      userPreferences = UserPreferences(shortcutMode = ShortcutMode.Enter)
     )
     myFixture.configureByText("test.java", "// hello<caret>")
     myFixture.performEditorAction(IdeActions.ACTION_EDITOR_START_NEW_LINE)
     assertThat(myFixture.editor.document.text).doesNotContain("\n// ")
+  }
+
+  @Test fun `steps back one indent level on a deeper indented continuation line`() {
+    testEnter(
+      fileName = "test.kt",
+      before =
+        """
+        >// TODO
+        >//  I am a
+        >//  multi-line comment
+        >//  ▮
+        """.trimMargin(">"),
+      after =
+        """
+        >// TODO
+        >//  I am a
+        >//  multi-line comment
+        >// ▮
+        """.trimMargin(">"),
+      userPreferences = UserPreferences(emptyLineBehavior = EnterOnEmptyLineBehavior.StepBack),
+    )
+  }
+
+  @Test fun `steps back through every indent level used in the block before exiting`() {
+    installHandlers(UserPreferences(emptyLineBehavior = EnterOnEmptyLineBehavior.StepBack))
+    myFixture.configureByText(
+      "test.kt",
+      """
+      >// shopping list:
+      >// - fruits
+      >//   - tropical
+      >//     ▮
+      """.trimMargin(">").replace("▮", "<caret>"),
+    )
+
+    myFixture.performEditorAction(IdeActions.ACTION_EDITOR_ENTER)
+    myFixture.checkResult(
+      """
+      >// shopping list:
+      >// - fruits
+      >//   - tropical
+      >//   ▮
+      """.trimMargin(">").replace("▮", "<caret>"),
+    )
+
+    myFixture.performEditorAction(IdeActions.ACTION_EDITOR_ENTER)
+    myFixture.checkResult(
+      """
+      >// shopping list:
+      >// - fruits
+      >//   - tropical
+      >// ▮
+      """.trimMargin(">").replace("▮", "<caret>"),
+    )
+
+    myFixture.performEditorAction(IdeActions.ACTION_EDITOR_ENTER)
+    myFixture.checkResult(
+      """
+      >// shopping list:
+      >// - fruits
+      >//   - tropical
+      >▮
+      """.trimMargin(">").replace("▮", "<caret>"),
+    )
+  }
+
+  @Test fun `exits immediately on a further indented continuation line by default`() {
+    testEnter(
+      fileName = "test.kt",
+      before =
+        """
+        >// TODO
+        >//  multi-line
+        >//  ▮
+        """.trimMargin(">"),
+      after =
+        """
+        >// TODO
+        >//  multi-line
+        >▮
+        """.trimMargin(">"),
+    )
   }
 
   @Test fun `does not exit comment continuation on a standalone empty comment line`() {
@@ -290,8 +374,13 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     )
   }
 
-  private fun testEnter(fileName: String, before: String, after: String) {
-    installHandlers()
+  private fun testEnter(
+    fileName: String,
+    before: String,
+    after: String,
+    userPreferences: UserPreferences = UserPreferences(),
+  ) {
+    installHandlers(userPreferences)
     myFixture.configureByText(fileName, before.replace("▮", "<caret>"))
     myFixture.performEditorAction(IdeActions.ACTION_EDITOR_ENTER)
     myFixture.checkResult(after.replace("▮", "<caret>"))
