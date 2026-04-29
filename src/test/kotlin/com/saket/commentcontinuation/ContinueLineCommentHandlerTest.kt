@@ -44,6 +44,23 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     )
   }
 
+  @Test fun `continues a Groovy comment when pressing enter at the end`() {
+    // Groovy is not in the original {java, kt} allowlist, but its line comment prefix is `//`,
+    // so the Commenter-based gate should accept it.
+    testEnter(
+      fileName = "test.groovy",
+      before =
+        """
+        >// hello▮
+        """.trimMargin(">"),
+      after =
+        """
+        >// hello
+        >// ▮
+        """.trimMargin(">"),
+    )
+  }
+
   @Test fun `keeps leading spaces on the next line`() {
     testEnter(
       fileName = "test.java",
@@ -217,9 +234,19 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     assertThat(lines.last().trimStart().startsWith("//")).isFalse()
   }
 
-  @Test fun `does not continue comments in unsupported file types`() {
+  @Test fun `does not continue in languages whose line comment prefix is not slash slash`() {
+    // Properties files use `#` for line comments, so even a literal `//` at the start of a line
+    // should not trigger continuation.
     installHandlers()
-    myFixture.configureByText("test.js", "// hello<caret>")
+    myFixture.configureByText("test.properties", "// hello<caret>")
+    myFixture.performEditorAction(IdeActions.ACTION_EDITOR_ENTER)
+    assertThat(myFixture.editor.document.text).doesNotContain("\n// ")
+  }
+
+  @Test fun `does not continue in plain text files`() {
+    // Plain text has no Commenter at all, so `//` is just text.
+    installHandlers()
+    myFixture.configureByText("test.txt", "// hello<caret>")
     myFixture.performEditorAction(IdeActions.ACTION_EDITOR_ENTER)
     assertThat(myFixture.editor.document.text).doesNotContain("\n// ")
   }

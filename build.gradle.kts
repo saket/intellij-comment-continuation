@@ -34,6 +34,7 @@ dependencies {
   intellijPlatform {
     intellijIdeaCommunity(providers.gradleProperty("platformVersion").get())
     bundledPlugin("com.intellij.java")
+    bundledPlugin("org.intellij.groovy")
     testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
     zipSigner()
   }

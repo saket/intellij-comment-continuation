@@ -1,5 +1,6 @@
 package com.saket.commentcontinuation
 
+import com.intellij.lang.LanguageCommenters
 import com.intellij.openapi.editor.Editor
 import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiDocumentManager
@@ -19,10 +20,18 @@ class StringScanLineCommentDetector : LineCommentDetector {
     psiDocumentManager.commitDocument(editor.document)
     val psiFile = psiDocumentManager.getPsiFile(editor.document) ?: return null
 
-    // The raw precheck keeps PSI off the hot path for normal Enter presses. Once we are here,
-    // use PSI only as a semantic confirmation that this is a supported Java/Kotlin line comment.
-    val fileExtension = psiFile.virtualFile?.extension ?: psiFile.fileType.defaultExtension
-    if (fileExtension !in supportedFileExtensions) return null
+    // Gate on the language's registered line-comment prefix rather than a hardcoded extension
+    // list. Any language plugin the host IDE has installed whose line comments are `//` is
+    // supported automatically (Java, Kotlin, JavaScript, TypeScript, Go, Rust, C/C++, Scala,
+    // Dart, etc.); languages with different prefixes are excluded (Python/Properties `#`,
+    // Lua `--`), as are files the IDE only recognizes as plain text.
+    //
+    // Steady-state cost is one UserData hash lookup per call — `forLanguage` memoizes the
+    // resolved Commenter on the Language instance, so this stays well behind the PSI element
+    // lookup it gates. See the implementation:
+    // https://github.com/JetBrains/intellij-community/blob/dd4894eafeec9cdf946cb167d97c5fe6b2cbb9a2/platform/core-api/src/com/intellij/lang/LanguageExtension.java#L98-L107
+    val commenter = LanguageCommenters.INSTANCE.forLanguage(psiFile.language)
+    if (commenter?.lineCommentPrefix != "//") return null
 
     val element = psiFile.findElementAt(lineCommentMatch.markerRange.start) ?: return null
     val comment = (element as? PsiComment)
@@ -81,6 +90,5 @@ class StringScanLineCommentDetector : LineCommentDetector {
   @Suppress("ConstPropertyName")
   private companion object {
     private const val MinimumCommentPrefixLength = 2
-    private val supportedFileExtensions = setOf("java", "kt")
   }
 }
