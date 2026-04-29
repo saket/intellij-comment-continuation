@@ -25,6 +25,11 @@ class StringScanLineCommentDetector : LineCommentDetector {
     // supported automatically (Java, Kotlin, JavaScript, TypeScript, Go, Rust, C/C++, Scala,
     // Dart, etc.); languages with different prefixes are excluded (Python/Properties `#`,
     // Lua `--`), as are files the IDE only recognizes as plain text.
+    //
+    // Steady-state cost is one UserData hash lookup per call — `forLanguage` memoizes the
+    // resolved Commenter on the Language instance, so this stays well behind the PSI element
+    // lookup it gates. See the implementation:
+    // https://github.com/JetBrains/intellij-community/blob/dd4894eafeec9cdf946cb167d97c5fe6b2cbb9a2/platform/core-api/src/com/intellij/lang/LanguageExtension.java#L98-L107
     val commenter = LanguageCommenters.INSTANCE.forLanguage(psiFile.language)
     if (commenter?.lineCommentPrefix != "//") return null
 
