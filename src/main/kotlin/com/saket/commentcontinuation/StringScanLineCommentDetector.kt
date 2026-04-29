@@ -22,7 +22,7 @@ class StringScanLineCommentDetector : LineCommentDetector {
     // The raw precheck keeps PSI off the hot path for normal Enter presses. Once we are here,
     // use PSI only as a semantic confirmation that this is a supported Java/Kotlin line comment.
     val fileExtension = psiFile.virtualFile?.extension ?: psiFile.fileType.defaultExtension
-    if (fileExtension !in supportedFileExtensions) return null
+    if (fileExtension.lowercase() !in supportedFileExtensions) return null
 
     val element = psiFile.findElementAt(lineCommentMatch.markerRange.start) ?: return null
     val comment = (element as? PsiComment)
