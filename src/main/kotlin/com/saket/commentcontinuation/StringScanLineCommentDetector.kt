@@ -1,117 +1,96 @@
 package com.saket.commentcontinuation
 
+import com.intellij.lang.LanguageCommenters
 import com.intellij.openapi.editor.Editor
-import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiDocumentManager
-import com.intellij.psi.util.PsiTreeUtil
+import com.intellij.psi.util.PsiUtilCore
+import com.intellij.util.text.CharArrayUtil
+
 
 class StringScanLineCommentDetector : LineCommentDetector {
-
   override fun findLineComment(
     editor: Editor,
     lineStart: Int,
     lineEnd: Int
   ): LineCommentMatch? {
-    val lineCommentMatch = fastRejectThenParseLineComment(editor, lineStart, lineEnd) ?: return null
+    val chars = editor.document.charsSequence
+    val contentStart = contentStartOrNull(chars, lineStart, lineEnd) ?: return null
 
+    val prefix = lineCommentPrefixAt(editor, lineStart) ?: return null
+    return parseLineComment(chars, contentStart, lineEnd, prefix)
+  }
+
+  /**
+   * Inexpensive pre-check: returns the offset of the first non-whitespace char if it could be a comment
+   * marker (markers never start with letters/digits), or null otherwise.
+   */
+  private fun contentStartOrNull(chars: CharSequence, lineStart: Int, lineEnd: Int): Int? {
+    val offset = skipHorizontalWhitespace(chars, lineStart, lineEnd)
+    return offset.takeIf { it < lineEnd && !chars[it].isLetterOrDigit() }
+  }
+
+  private fun skipHorizontalWhitespace(chars: CharSequence, from: Int, to: Int): Int {
+    var offset = from
+    while (offset < to && chars[offset].isHorizontalWhitespace()) {
+      offset++
+    }
+    return offset
+  }
+
+  /**
+   * Resolves the line-comment prefix (e.g. `//`, `#`, `;`, `--`) for the language at [offset].
+   *
+   * Uses the language *at the offset* rather than the file's base language so injected/composite
+   * files (templates, fenced code, etc.) resolve to the correct commenter.
+   */
+  private fun lineCommentPrefixAt(editor: Editor, offset: Int): String? {
     val project = editor.project ?: return null
     val psiDocumentManager = PsiDocumentManager.getInstance(project)
     psiDocumentManager.commitDocument(editor.document)
     val psiFile = psiDocumentManager.getPsiFile(editor.document) ?: return null
 
-    // The raw precheck keeps PSI off the hot path for normal Enter presses. Once we are here,
-    // use PSI only as a semantic confirmation that this is a supported line comment.
-    val fileExtension = psiFile.virtualFile?.extension ?: psiFile.fileType.defaultExtension
-    if (fileExtension !in supportedFileExtensions &&
-      fileExtension.lowercase() !in supportedFileExtensions
-    ) return null
-
-    val element = psiFile.findElementAt(lineCommentMatch.markerRange.start) ?: return null
-    val comment = (element as? PsiComment)
-      ?: PsiTreeUtil.getParentOfType(element, PsiComment::class.java, false)
-      ?: return null
-
-    return lineCommentMatch.takeIf {
-      comment.textOffset == lineCommentMatch.markerRange.start
-    }
+    val language = PsiUtilCore.getLanguageAtOffset(psiFile, offset)
+    val prefix = LanguageCommenters.INSTANCE.forLanguage(language)?.lineCommentPrefix
+    return prefix?.takeIf { it.isNotEmpty() }
   }
 
-  private fun fastRejectThenParseLineComment(
-    editor: Editor,
-    lineStart: Int,
-    lineEnd: Int
+  private fun parseLineComment(
+    chars: CharSequence,
+    contentStart: Int,
+    lineEnd: Int,
+    prefix: String,
   ): LineCommentMatch? {
-    val chars = editor.document.charsSequence
+    // 1. Match the language's comment prefix at the start of the trimmed line.
+    if (contentStart + prefix.length > lineEnd || !chars.startsWith(prefix, contentStart)) return null
+    var prefixEnd = contentStart + prefix.length
 
-    // 1. Skip leading horizontal whitespace (indentation).
-    var offset = lineStart
-    while (offset < lineEnd && chars[offset].isHorizontalWhitespace()) {
-      offset++
-    }
-    if (offset >= lineEnd) return null
-
-    // 2. Detect comment marker. Inline detection avoids getOrNull() boxing into Char?.
-      val markerChar: Char = when (val first = chars[offset]) {
-      '#', ';' -> first
-      '-', '/' -> {
-        // These markers require at least two identical chars in a row.
-        if (offset + 1 >= lineEnd || chars[offset + 1] != first) return null
-        first
+    // 2. Consume extra repeated marker chars only for single-repeated-char prefixes
+    //    (`//` -> `///`, `#` -> `##`, `;` -> `;;`, `--` -> `---`, ...).
+    val fillChar = prefix.singleRepeatedCharOrNull()
+    if (fillChar != null) {
+      while (prefixEnd < lineEnd && chars[prefixEnd] == fillChar) {
+        prefixEnd++
       }
-      else -> return null
     }
 
-    // 3. Consume any number of repeated marker chars (`##`, `///`, `---`, `;;;`, ...).
-    var prefixEnd = offset + 1
-    while (prefixEnd < lineEnd && chars[prefixEnd] == markerChar) {
-      prefixEnd++
-    }
-
-    // 4. Single pass over the rest of the line:
-    //    - measure indentation (horizontal whitespace right after the marker)
-    //    - simultaneously detect whether the remainder contains any non-whitespace.
-    var indentEnd = prefixEnd
-    while (indentEnd < lineEnd && chars[indentEnd].isHorizontalWhitespace()) {
-      indentEnd++
-    }
-    var isEmptyContinuationLine = true
-    var scan = indentEnd
-    while (scan < lineEnd) {
-      if (!chars[scan].isWhitespace()) {
-        isEmptyContinuationLine = false
-        break
-      }
-      scan++
-    }
-
-    // 5. Avoid allocating an empty string when there's no indent after the marker.
-    val indent = if (indentEnd == prefixEnd) "" else chars.substring(prefixEnd, indentEnd)
+    // 3. Measure indentation after the marker and detect whether any content follows.
+    val indentEnd = CharArrayUtil.shiftForward(chars, prefixEnd, HORIZONTAL_WHITESPACE).coerceAtMost(lineEnd)
+    val isEmptyContinuationLine = (indentEnd until lineEnd).all { chars[it].isWhitespace() }
 
     return LineCommentMatch(
-      markerRange = TextRange(offset, prefixEnd),
-      indent = indent,
+      markerRange = TextRange(contentStart, prefixEnd),
+      indent = chars.substring(prefixEnd, indentEnd),
       isEmptyContinuationLine = isEmptyContinuationLine,
     )
   }
 
-  private companion object {
-    // Use lowercase letters only
-    private val supportedFileExtensions = setOf(
-      "c", "h", "cpp", "hpp", "cc", "hh", "cxx", "hxx", "cu", "cuh",
-      "cs", "m", "mm",
-      "java", "kt", "kts", "scala", "sc", "groovy", "ceylon",
-      "js", "mjs", "cjs", "jsx", "ts", "mts", "tsx", "php", "dart",
-      "go", "rs", "swift", "d", "zig", "odin", "v", "vala", "vapi", "jai", "carbon",
-      "pike", "pmod", "ck", "nut", "glsl", "vert", "frag", "geom", "comp", "hlsl", "fx",
-      "sol", "jolie", "ice",
-      "py", "pyw", "pyi", "sh", "bash", "zsh", "fish", "rb", "rake", "gemspec",
-      "yml", "yaml", "toml", "ini", "cfg", "conf", "properties", "r", "pl", "pm",
-      "tcl", "cmake", "make", "mk", "dockerfile", "jl", "nim", "cr", "elixir", "ex", "exs",
-      "awk", "sed", "ps1", "psm1", "psd1", "nx", "pp", "service", "timer", "target",
-      "sql", "psql", "mysql", "plsql", "lua", "hs", "lhs", "ada", "adb", "ads",
-      "elm", "purs", "vhdl", "vhd", "eiffel", "vif",
-      "lisp", "cl", "el", "scm", "ss", "rkt", "clj", "cljs", "cljc", "edn",
-      "asm", "s", "nasm", "inc", "wasm", "inf", "reg", "ahk", "iss"
-    )
+  /** Returns the fill char if the prefix is one char repeated (`//`, `##`, `--`), else null. */
+  private fun String.singleRepeatedCharOrNull(): Char? {
+    val first = firstOrNull() ?: return null
+    return first.takeIf { all { c -> c == first } }
+  }
+
+  companion object {
+    private const val HORIZONTAL_WHITESPACE = " \t"
   }
 }
