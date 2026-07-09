@@ -22,21 +22,17 @@ class StringScanLineCommentDetector : LineCommentDetector {
     // The raw precheck keeps PSI off the hot path for normal Enter presses. Once we are here,
     // use PSI only as a semantic confirmation that this is a supported line comment.
     val fileExtension = psiFile.virtualFile?.extension ?: psiFile.fileType.defaultExtension
-    if (fileExtension.lowercase() !in supportedFileExtensions) return null
+    if (fileExtension !in supportedFileExtensions &&
+      fileExtension.lowercase() !in supportedFileExtensions
+    ) return null
 
     val element = psiFile.findElementAt(lineCommentMatch.markerRange.start) ?: return null
     val comment = (element as? PsiComment)
       ?: PsiTreeUtil.getParentOfType(element, PsiComment::class.java, false)
       ?: return null
 
-    return if (
-      comment.textOffset == lineCommentMatch.markerRange.start &&
-      (comment.text.startsWith("//") || comment.text.startsWith("#") ||
-              comment.text.startsWith("--") || comment.text.startsWith(";"))
-    ) {
-      lineCommentMatch
-    } else {
-      null
+    return lineCommentMatch.takeIf {
+      comment.textOffset == lineCommentMatch.markerRange.start
     }
   }
 
@@ -79,13 +75,13 @@ class StringScanLineCommentDetector : LineCommentDetector {
       indentEnd++
     }
     var isEmptyContinuationLine = true
-    var i = indentEnd
-    while (i < lineEnd) {
-      if (!chars[i].isWhitespace()) {
+    var scan = indentEnd
+    while (scan < lineEnd) {
+      if (!chars[scan].isWhitespace()) {
         isEmptyContinuationLine = false
         break
       }
-      i++
+      scan++
     }
 
     // 5. Avoid allocating an empty string when there's no indent after the marker.
