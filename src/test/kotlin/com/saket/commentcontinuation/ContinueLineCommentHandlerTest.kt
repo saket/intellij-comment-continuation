@@ -44,6 +44,36 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     )
   }
 
+  @Test fun `continues a properties comment`() {
+    testEnter(
+      fileName = "test.properties",
+      before =
+        """
+        ># TODO▮
+        """.trimMargin(">"),
+      after =
+        """
+        ># TODO
+        ># ▮
+        """.trimMargin(">"),
+    )
+  }
+
+  @Test fun `preserves repeated properties comment markers`() {
+    testEnter(
+      fileName = "test.properties",
+      before =
+        """
+        >## TODO▮
+        """.trimMargin(">"),
+      after =
+        """
+        >## TODO
+        >## ▮
+        """.trimMargin(">"),
+    )
+  }
+
   @Test fun `keeps leading spaces on the next line`() {
     testEnter(
       fileName = "test.java",
@@ -206,6 +236,20 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     myFixture.configureByText("test.java", "val x = 1▮".replace("▮", "<caret>"))
     myFixture.performEditorAction(IdeActions.ACTION_EDITOR_ENTER)
     assertThat(myFixture.editor.document.text).doesNotContain("//")
+  }
+
+  @Test fun `does not continue a comment marker from another language`() {
+    installHandlers()
+    myFixture.configureByText("test.java", "# TODO<caret>")
+    myFixture.performEditorAction(IdeActions.ACTION_EDITOR_ENTER)
+    assertThat(myFixture.editor.document.text).doesNotContain("\n# ")
+  }
+
+  @Test fun `does not continue a block comment line`() {
+    installHandlers()
+    myFixture.configureByText("test.java", "* comment<caret>")
+    myFixture.performEditorAction(IdeActions.ACTION_EDITOR_ENTER)
+    assertThat(myFixture.editor.document.text).doesNotContain("\n* ")
   }
 
   @Test fun `does not continue for comments that appear after code`() {

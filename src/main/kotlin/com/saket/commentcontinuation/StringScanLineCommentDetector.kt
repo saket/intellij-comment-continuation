@@ -1,5 +1,6 @@
 package com.saket.commentcontinuation
 
+import com.intellij.lang.Language
 import com.intellij.lang.LanguageCommenters
 import com.intellij.openapi.editor.Editor
 import com.intellij.psi.PsiDocumentManager
@@ -16,17 +17,17 @@ class StringScanLineCommentDetector : LineCommentDetector {
     val chars = editor.document.charsSequence
     val contentStart = contentStartOrNull(chars, lineStart, lineEnd) ?: return null
 
-    val prefix = lineCommentPrefixAt(editor, lineStart) ?: return null
+    val prefix = lineCommentPrefixAt(editor, contentStart) ?: return null
     return parseLineComment(chars, contentStart, lineEnd, prefix)
   }
 
   /**
    * Inexpensive pre-check: returns the offset of the first non-whitespace char if it could be a comment
-   * marker (markers never start with letters/digits), or null otherwise.
+   * marker registered by a language commenter, or null otherwise.
    */
   private fun contentStartOrNull(chars: CharSequence, lineStart: Int, lineEnd: Int): Int? {
     val offset = skipHorizontalWhitespace(chars, lineStart, lineEnd)
-    return offset.takeIf { it < lineEnd && !chars[it].isLetterOrDigit() }
+    return offset.takeIf { it < lineEnd && chars[it] in lineCommentStartChars }
   }
 
   private fun skipHorizontalWhitespace(chars: CharSequence, from: Int, to: Int): Int {
@@ -92,5 +93,11 @@ class StringScanLineCommentDetector : LineCommentDetector {
 
   companion object {
     private const val HORIZONTAL_WHITESPACE = " \t"
+
+    private val lineCommentStartChars: Set<Char> by lazy(LazyThreadSafetyMode.NONE) {
+      Language.getRegisteredLanguages().mapNotNullTo(mutableSetOf()) { language ->
+        LanguageCommenters.INSTANCE.forLanguage(language)?.lineCommentPrefix?.firstOrNull()
+      }
+    }
   }
 }
