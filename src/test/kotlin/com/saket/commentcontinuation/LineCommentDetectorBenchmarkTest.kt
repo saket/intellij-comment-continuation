@@ -36,13 +36,18 @@ class LineCommentDetectorBenchmarkTest : BasePlatformTestCase() {
     val lineStart = lines.take(targetLineIndex).sumOf { it.length + 1 }
     val lineEnd = lineStart + lines[targetLineIndex].length
 
+    StringScanLineCommentDetector.prewarm()
+    val stringScanHandler = CommentContinuationHandler(
+      originalHandler = NoOpEditorActionHandler,
+      actionId = IdeActions.ACTION_EDITOR_ENTER,
+      userPreferencesReader = DefaultUserPreferences,
+      detector = StringScanLineCommentDetector()
+    )
+    val firstStringScanTime = measureTime {
+      stringScanHandler.findConfirmedLineComment(myFixture.editor, lineEnd)
+    }
     val stringScanTime = benchmarkHandler(
-      handler = CommentContinuationHandler(
-        originalHandler = NoOpEditorActionHandler,
-        actionId = IdeActions.ACTION_EDITOR_ENTER,
-        userPreferencesReader = DefaultUserPreferences,
-        detector = StringScanLineCommentDetector()
-      ),
+      handler = stringScanHandler,
       editor = myFixture.editor,
       caretOffset = lineEnd,
     )
@@ -67,6 +72,7 @@ class LineCommentDetectorBenchmarkTest : BasePlatformTestCase() {
       |=== Benchmark: $BenchmarkIterations iterations on AOSP View.java (${lines.size} lines) ===
       |Non-comment line ${targetLineIndex + 1}: "${lines[targetLineIndex].trim()}"
       |
+      |First scan after pre-warm: $firstStringScanTime
       |String scan:  $stringScanAvg avg  ($stringScanTime total)
       |PSI:          $psiAvg avg  ($psiTime total)
       |String scan is ${"%.1f".format(speedup)}x faster

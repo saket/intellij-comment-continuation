@@ -94,6 +94,11 @@ class StringScanLineCommentDetector : LineCommentDetector {
   companion object {
     private const val HORIZONTAL_WHITESPACE = " \t"
 
+    internal fun prewarm() {
+      // Reading the lazy property initializes the cache before editor handlers are installed.
+      lineCommentStartChars
+    }
+
     private val lineCommentStartChars: Set<Char> by lazy(LazyThreadSafetyMode.NONE) {
       Language.getRegisteredLanguages().mapNotNullTo(mutableSetOf()) { language ->
         LanguageCommenters.INSTANCE.forLanguage(language)?.lineCommentPrefix?.firstOrNull()
