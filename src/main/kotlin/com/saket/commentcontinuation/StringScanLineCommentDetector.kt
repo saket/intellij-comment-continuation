@@ -3,8 +3,11 @@ package com.saket.commentcontinuation
 import com.intellij.lang.Language
 import com.intellij.lang.LanguageCommenters
 import com.intellij.openapi.editor.Editor
+import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.util.PsiUtilCore
+import com.intellij.util.codeInsight.CommentUtilCore
 import com.intellij.util.text.CharArrayUtil
 
 
@@ -17,8 +20,9 @@ class StringScanLineCommentDetector : LineCommentDetector {
     val chars = editor.document.charsSequence
     val contentStart = contentStartOrNull(chars, lineStart, lineEnd) ?: return null
 
-    val prefix = lineCommentPrefixAt(editor, contentStart) ?: return null
-    return parseLineComment(chars, contentStart, lineEnd, prefix)
+    val context = lineCommentContextAt(editor, contentStart) ?: return null
+    val match = parseLineComment(chars, contentStart, lineEnd, context.prefix) ?: return null
+    return match.takeIf { context.isCommentAt(contentStart) }
   }
 
   /**
@@ -44,7 +48,7 @@ class StringScanLineCommentDetector : LineCommentDetector {
    * Uses the language *at the offset* rather than the file's base language so injected/composite
    * files (templates, fenced code, etc.) resolve to the correct commenter.
    */
-  private fun lineCommentPrefixAt(editor: Editor, offset: Int): String? {
+  private fun lineCommentContextAt(editor: Editor, offset: Int): LineCommentContext? {
     val project = editor.project ?: return null
     val psiDocumentManager = PsiDocumentManager.getInstance(project)
     psiDocumentManager.commitDocument(editor.document)
@@ -52,7 +56,26 @@ class StringScanLineCommentDetector : LineCommentDetector {
 
     val language = PsiUtilCore.getLanguageAtOffset(psiFile, offset)
     val prefix = LanguageCommenters.INSTANCE.forLanguage(language)?.lineCommentPrefix
-    return prefix?.takeIf { it.isNotEmpty() }
+    return if (prefix.isNullOrEmpty()) {
+      null
+    } else {
+      LineCommentContext(psiFile, language, prefix)
+    }
+  }
+
+  private data class LineCommentContext(
+    val psiFile: PsiFile,
+    val language: Language,
+    val prefix: String,
+  ) {
+    fun isCommentAt(offset: Int): Boolean {
+      var element: PsiElement? = psiFile.viewProvider.findElementAt(offset, language)
+      while (element != null && element != psiFile) {
+        if (element.textRange.startOffset == offset && CommentUtilCore.isComment(element)) return true
+        element = element.parent
+      }
+      return false
+    }
   }
 
   private fun parseLineComment(

@@ -245,11 +245,25 @@ class ContinueLineCommentHandlerTest : BasePlatformTestCase() {
     assertThat(myFixture.editor.document.text).doesNotContain("\n# ")
   }
 
-  @Test fun `does not continue a block comment line`() {
+  @Test fun `does not treat a line comment marker inside a block comment as a line comment`() {
     installHandlers()
-    myFixture.configureByText("test.java", "* comment<caret>")
+    myFixture.configureByText(
+      "test.java",
+      """
+      /*
+       // not a line comment<caret>
+      */
+      """.trimIndent()
+    )
     myFixture.performEditorAction(IdeActions.ACTION_EDITOR_ENTER)
-    assertThat(myFixture.editor.document.text).doesNotContain("\n* ")
+    myFixture.checkResult(
+      """
+      /*
+       // not a line comment
+       <caret>
+      */
+      """.trimIndent()
+    )
   }
 
   @Test fun `does not continue for comments that appear after code`() {
