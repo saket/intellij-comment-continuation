@@ -2,9 +2,9 @@ package com.saket.commentcontinuation
 
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.ui.DialogPanel
-import com.intellij.ui.SimpleListCellRenderer
 import com.intellij.ui.dsl.builder.bindItem
 import com.intellij.ui.dsl.builder.panel
+import com.intellij.ui.dsl.listCellRenderer.textListCellRenderer
 import javax.swing.JComponent
 
 class UserPreferencesScreen : Configurable {
@@ -14,8 +14,8 @@ class UserPreferencesScreen : Configurable {
     row("Continue comments with:") {
       comboBox(UserPreferences.ShortcutMode.entries)
         .applyToComponent {
-          renderer = SimpleListCellRenderer.create("") { mode ->
-            mode?.displayName.orEmpty()
+          renderer = textListCellRenderer { mode ->
+            mode.displayName
           }
         }
         .bindItem(
