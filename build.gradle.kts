@@ -74,6 +74,7 @@ intellijPlatform {
     name = providers.gradleProperty("pluginName")
     version = pluginVersion
     description.set(pluginDescription)
+    changeNotes = "https://github.com/saket/intellij-comment-continuation/releases"
     vendor {
       name = providers.gradleProperty("pluginVendor")
     }
